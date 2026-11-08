@@ -11,10 +11,10 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'library', label: '本地素材', available: true, note: '' },
   { id: 'favorites', label: '收藏夹', available: true, note: '' },
   { id: 'sites', label: '网站导航', available: false, note: 'V0.6 提供' },
-  { id: 'settings', label: '设置', available: false, note: '从首页引导填写 Key' }
+  { id: 'settings', label: '设置', available: true, note: '' }
 ]
 
-type NavKey = 'search' | 'downloads' | 'library' | 'favorites'
+type NavKey = 'search' | 'downloads' | 'library' | 'favorites' | 'settings'
 
 interface Props {
   current: NavKey
@@ -46,13 +46,14 @@ export default function Sidebar({ current, onNavigate }: Props) {
               aria-current={active ? 'page' : undefined}
               title={item.note || item.label}
               onClick={() => {
-                // 已开放的四个页面可跳转；其余项由 available=false 在按钮上禁用
+                // 已开放的五个页面可跳转；网站导航仍由 available=false 禁用
                 if (
                   item.available &&
                   (item.id === 'search' ||
                     item.id === 'downloads' ||
                     item.id === 'library' ||
-                    item.id === 'favorites')
+                    item.id === 'favorites' ||
+                    item.id === 'settings')
                 ) {
                   onNavigate(item.id)
                 }

@@ -34,6 +34,10 @@ export interface KithoardApi {
   settings: {
     get: (key: string) => Promise<ApiResult<unknown>>
     set: (key: string, value: unknown) => Promise<ApiResult<{ ok: true }>>
+    /** 选下载目录；取消返回 null */
+    pickDir: () => Promise<ApiResult<{ path: string | null }>>
+    /** 手动清理缓存；返回清理条数与字节数 */
+    cleanCache: () => Promise<ApiResult<{ removed: number; bytes: number }>>
   }
   clipboard: {
     writeText: (text: string) => Promise<ApiResult<{ ok: true }>>

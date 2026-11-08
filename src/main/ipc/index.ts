@@ -2,6 +2,7 @@ import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import path from 'node:path'
 import { CHANNELS } from '@shared/channels'
 import { fail, isAppError, ok, type Envelope } from '@shared/errors'
+import { cleanCache } from '../cache/clean'
 import { createDownloadEngine } from '../download/engine'
 import { log } from '../log'
 import { getApiKey } from '../settings'
@@ -57,16 +58,27 @@ export function registerIpc(deps: { userDataDir: string }): { shutdown: () => vo
   const search = createSearchService({ registry, thumbsDir: path.join(cacheRoot, 'thumbs') })
   const detail = createDetailService({ registry, thumbsDir: path.join(cacheRoot, 'thumbs') })
   const recent = createRecentService({ registry, thumbsDir: path.join(cacheRoot, 'thumbs') })
-  const settings = createSettingsService({ registry })
   const clipboard = createClipboardService()
   const engine = createDownloadEngine({
     emit,
     quarantineDir: path.join(deps.userDataDir, 'quarantine')
   })
+  // 设置里的并发数要立刻作用到队列，所以 settings 必须在 engine 之后创建
+  const settings = createSettingsService({
+    registry,
+    cacheRoot,
+    pump: () => engine.pump()
+  })
   const download = createDownloadService({ engine, notify: emit })
   const quarantine = createQuarantineService({ notify: emit })
   const library = createLibraryService()
   const favorite = createFavoriteService()
+
+  // §7.5-8：启动时清一次超过 7 天的缩略图与响应缓存；只动 cache，不碰下载临时文件
+  const cleaned = cleanCache(cacheRoot)
+  if (cleaned.removed > 0) {
+    log.info(`cache clean removed=${cleaned.removed} bytes=${cleaned.bytes}`)
+  }
 
   // 启动即对齐磁盘（§5.4）：窗口还没建，事件无人接收也没关系，界面随后 list() 拿到的就是校正后的状态
   const recovery = runStartupRecovery()
@@ -94,6 +106,14 @@ export function registerIpc(deps: { userDataDir: string }): { shutdown: () => vo
   ipcMain.handle(
     CHANNELS.settingsSet,
     wrap((arg) => settings.write(arg))
+  )
+  ipcMain.handle(
+    CHANNELS.settingsPickDir,
+    wrap(() => settings.pickDir())
+  )
+  ipcMain.handle(
+    CHANNELS.settingsCleanCache,
+    wrap(() => settings.cleanCache())
   )
   ipcMain.handle(
     CHANNELS.copyText,

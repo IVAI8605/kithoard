@@ -46,13 +46,28 @@ export const CHANNELS = {
   favoriteRemove: 'favorite:remove',
   favoriteList: 'favorite:list',
   // 卡片与详情页需要知道「这条是否已收藏」，单独返回 id 集合，避免为每张卡片查一次
-  favoriteIds: 'favorite:ids'
+  favoriteIds: 'favorite:ids',
+  // V0.3 设置页：目录选择、缓存清理；并发与目录读写走 settings:get/set 的白名单
+  settingsPickDir: 'settings:pickDir',
+  settingsCleanCache: 'settings:cleanCache'
 } as const
 
 /** 渲染层可读的设置键白名单；不在表内的键一律拒绝 */
-export const READABLE_SETTINGS = ['source.enabled', 'source.apiKey.pixabay', 'app.keyStorage'] as const
+export const READABLE_SETTINGS = [
+  'source.enabled',
+  'source.apiKey.pixabay',
+  'app.keyStorage',
+  'download.dir',
+  'download.concurrency',
+  'cache.size'
+] as const
 
-export const WRITABLE_SETTINGS = ['source.enabled', 'source.apiKey.pixabay'] as const
+export const WRITABLE_SETTINGS = [
+  'source.enabled',
+  'source.apiKey.pixabay',
+  'download.dir',
+  'download.concurrency'
+] as const
 
 /**
  * §7.4-8 / §9.1：单次批量下载上限 20 条（Pixabay 条款约束）。

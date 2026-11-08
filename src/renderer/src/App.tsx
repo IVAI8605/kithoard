@@ -7,9 +7,10 @@ import DownloadsPage from './pages/DownloadsPage'
 import FavoritesPage from './pages/FavoritesPage'
 import LibraryPage from './pages/LibraryPage'
 import SearchPage from './pages/SearchPage'
+import SettingsPage from './pages/SettingsPage'
 import { useAppStore } from './store'
 
-type NavKey = 'search' | 'downloads' | 'library' | 'favorites'
+type NavKey = 'search' | 'downloads' | 'library' | 'favorites' | 'settings'
 /** 详情页记住从哪来的，返回时不会把用户莫名送回首页 */
 type View = { name: NavKey } | { name: 'detail'; assetId: number; from: NavKey }
 
@@ -17,7 +18,8 @@ const BACK_LABELS: Record<NavKey, string> = {
   search: '返回搜索',
   downloads: '返回下载管理',
   library: '返回本地素材',
-  favorites: '返回收藏夹'
+  favorites: '返回收藏夹',
+  settings: '返回设置'
 }
 
 function backLabelOf(from: NavKey): string {
@@ -92,6 +94,7 @@ export default function App() {
             onOpenDetail={(assetId) => setView({ name: 'detail', assetId, from: 'favorites' })}
           />
         ) : null}
+        {view.name === 'settings' ? <SettingsPage /> : null}
         {view.name === 'detail' ? (
           <DetailView
             assetId={view.assetId}

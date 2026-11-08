@@ -1266,6 +1266,74 @@ input {
   line-height: 1.5;
 }
 
+/* 设置页：每块设置一张卡片，行内左说明右操作，窄窗口自动换行 */
+.settings-block {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+}
+
+.settings-block h2 {
+  margin: 0 0 12px;
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 18px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.settings-block h2 + .settings-row {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.settings-row__label {
+  margin: 0;
+  font-size: 14px;
+}
+
+.settings-row__value {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.settings-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-inline input {
+  width: 68px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.settings-inline input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.settings-block .dialog__form {
+  margin-top: 10px;
+}
+
 .dl-item__handle {
   flex: none;
   width: 16px;
