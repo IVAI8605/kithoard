@@ -1,0 +1,24 @@
+import { resolve } from 'node:path'
+import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
+import react from '@vitejs/plugin-react'
+
+// 主进程/preload 保持 CommonJS 产物，避免 Electron 加载 ESM 预加载脚本的兼容问题
+export default defineConfig({
+  main: {
+    plugins: [externalizeDepsPlugin()],
+    resolve: { alias: { '@shared': resolve('src/shared') } }
+  },
+  preload: {
+    plugins: [externalizeDepsPlugin()],
+    resolve: { alias: { '@shared': resolve('src/shared') } }
+  },
+  renderer: {
+    plugins: [react()],
+    resolve: {
+      alias: {
+        '@shared': resolve('src/shared'),
+        '@renderer': resolve('src/renderer/src')
+      }
+    }
+  }
+})

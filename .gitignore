@@ -1,0 +1,7 @@
+node_modules/
+out/
+dist/
+cache/*
+!cache/待定问题.md
+.screenshots/
+*.log
