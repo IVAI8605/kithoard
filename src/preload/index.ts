@@ -25,6 +25,7 @@ const api: KithoardApi = {
   download: {
     enqueue: (assetIds, options) =>
       ipcRenderer.invoke(CHANNELS.downloadEnqueue, { assetIds, ...options }),
+    estimate: (assetIds) => ipcRenderer.invoke(CHANNELS.downloadEstimate, { assetIds }),
     // 恢复报告由主进程启动时算好，这里只是取回，不会触发二次扫描
     recover: () => ipcRenderer.invoke(CHANNELS.downloadRecover),
     startQueue: () => ipcRenderer.invoke(CHANNELS.downloadStartQueue),

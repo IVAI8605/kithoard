@@ -4,9 +4,10 @@ import os from 'node:os'
 import path from 'node:path'
 import { CHANNELS } from '@shared/channels'
 import { makeError } from '@shared/errors'
-import type { AssetType, DownloadState, DownloadTask } from '@shared/types'
+import type { AssetType, DownloadEstimate, DownloadState, DownloadTask } from '@shared/types'
 import { getDb } from '../db'
 import { isAutoStartEnabled, type DownloadEngine } from '../download/engine'
+import { summarizeEstimate } from '../download/estimate'
 import { buildTargetPath, extFromUrl, normalizePath, sanitizeBaseName } from '../download/naming'
 import { nextState } from '../download/task'
 import { checkDownloadUrl, needsLargeFileConfirm } from '../safety/policy'
@@ -57,6 +58,8 @@ interface ListRow {
 export interface DownloadService {
   /** 入参未校验即传入：校验与状态机都属于 service，界面与未来的 agent 网关共用同一份 */
   enqueue(raw: unknown): { taskIds: string[] }
+  /** 批量下载确认框的体量预估；不落库、不发请求 */
+  estimate(raw: unknown): DownloadEstimate
   pause(raw: unknown): Promise<{ ok: true }>
   cancel(raw: unknown): Promise<{ ok: true }>
   resume(raw: unknown): { ok: true }
@@ -100,6 +103,13 @@ export function createDownloadService(deps: {
       // §5.2：autoStart 只决定「新入队是否立即开始」，关了就先待在队列里
       if (isAutoStartEnabled()) deps.engine.pump()
       return { taskIds }
+    },
+
+    estimate(raw) {
+      const assetIds = readAssetIds(raw)
+      // 只查大小，不做许可与扩展名校验：预估阶段报错会让确认框直接弹不出来
+      const assets = loadAssets(assetIds)
+      return summarizeEstimate(assets.map((asset) => ({ sizeBytes: asset.size_bytes })))
     },
 
     async pause(raw) {

@@ -11,6 +11,7 @@ export const CHANNELS = {
   copyText: 'app:copyText',
   // V0.2 下载队列：通道名按 §6.2 的 domain:action 约定
   downloadEnqueue: 'download:enqueue',
+  downloadEstimate: 'download:estimate',
   downloadPause: 'download:pause',
   downloadCancel: 'download:cancel',
   downloadResume: 'download:resume',

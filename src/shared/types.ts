@@ -153,6 +153,12 @@ export interface RecoveryReport {
   quarantined: number
 }
 
+/** 批量下载前的体量预估；bytes 为 null 表示至少一条大小未知，不做估算 */
+export interface DownloadEstimate {
+  count: number
+  bytes: number | null
+}
+
 /** 本地素材在磁盘上的三种状态；quarantined 只出现在隔离区，本地素材页不展示 */
 export type LocalFileStatus = 'present' | 'missing' | 'quarantined'
 

@@ -102,6 +102,10 @@ export function registerIpc(deps: { userDataDir: string }): { shutdown: () => vo
     wrap((arg) => download.enqueue(arg))
   )
   ipcMain.handle(
+    CHANNELS.downloadEstimate,
+    wrap((arg) => download.estimate(arg))
+  )
+  ipcMain.handle(
     CHANNELS.downloadPause,
     wrap((arg) => download.pause(arg))
   )

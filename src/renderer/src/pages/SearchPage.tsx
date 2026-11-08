@@ -3,6 +3,7 @@ import type { SearchResultItem, SearchableType } from '@shared/types'
 import AssetCard from '../components/AssetCard'
 import ContextMenu from '../components/ContextMenu'
 import PreviewDialog from '../components/PreviewDialog'
+import { formatSize } from '../format'
 import { useAppStore } from '../store'
 
 interface Props {
@@ -100,10 +101,17 @@ export default function SearchPage({ onOpenDetail }: Props) {
     setToast(error.message)
   }
 
-  const handleBatchDownload = (): void => {
+  const handleBatchDownload = async (): Promise<void> => {
     if (selectedIds.length === 0) return
+    // 预估只用于确认框文案；查不到大小时照常可下载，按「未知」展示，不阻塞流程
+    const estimate = await window.api.download.estimate(selectedIds)
+    const count = estimate.ok ? estimate.data.count : selectedIds.length
+    const sizeText =
+      estimate.ok && estimate.data.bytes !== null
+        ? `预计 ${formatSize(estimate.data.bytes)}`
+        : '预计大小未知'
     // 批量入队一次性确认：避免用户勾了十几个之后才在下载页发现选错
-    const confirmed = window.confirm(`确认下载选中的 ${selectedIds.length} 个素材吗？`)
+    const confirmed = window.confirm(`确认下载选中的 ${count} 个素材？${sizeText}`)
     if (!confirmed) return
     void enqueue(selectedIds)
   }
@@ -187,7 +195,7 @@ export default function SearchPage({ onOpenDetail }: Props) {
             <button
               type="button"
               className="btn btn--small btn--primary"
-              onClick={handleBatchDownload}
+              onClick={() => void handleBatchDownload()}
             >
               下载所选
             </button>

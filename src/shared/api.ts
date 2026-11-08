@@ -3,6 +3,7 @@ import type {
   DownloadProgressEvent,
   DownloadStateEvent,
   DownloadTask,
+  DownloadEstimate,
   LocalFilePage,
   LocalFileProps,
   LocalFileQuery,
@@ -42,6 +43,8 @@ export interface KithoardApi {
       assetIds: number[],
       options?: { confirmLarge?: boolean }
     ) => Promise<ApiResult<{ taskIds: string[] }>>
+    /** 批量确认框用：只返回数量与合计字节，bytes 为 null 表示有素材大小未知 */
+    estimate: (assetIds: number[]) => Promise<ApiResult<DownloadEstimate>>
     /** 取回启动恢复报告；主进程启动时已执行过，不会重复扫描 */
     recover: () => Promise<ApiResult<RecoveryReport>>
     /** 开始/继续处理排队任务；用户没在恢复弹窗点确认前不应调用 */
