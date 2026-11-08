@@ -2,17 +2,30 @@ import { useCallback, useEffect, useState } from 'react'
 import type { AssetType, LocalFileItem, LocalFileProps } from '@shared/types'
 import FilePropsDialog from '../components/FilePropsDialog'
 import ImageProcessDialog from '../components/ImageProcessDialog'
+import MediaProcessDialog from '../components/MediaProcessDialog'
 import { formatDateTime, formatSize, typeLabel } from '../format'
 
 /** 与主进程默认值一致；一页 50 条足够覆盖常见素材库，翻页成本也低 */
 const PAGE_SIZE = 50
 
-/** 图片处理只接这几种扩展名，与主进程 media service 的白名单一致 */
+/** 处理类型与主进程 media service 的白名单保持一致 */
 const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif', '.bmp'])
+const VIDEO_EXTS = new Set(['.mp4', '.mkv', '.webm', '.mov'])
+const AUDIO_EXTS = new Set(['.mp3', '.aac', '.wav', '.flac'])
 
-function isImageFile(fileName: string): boolean {
+type MediaKind = 'image' | 'video' | 'audio'
+
+function extOf(fileName: string): string {
   const index = fileName.lastIndexOf('.')
-  return index > 0 && IMAGE_EXTS.has(fileName.slice(index).toLowerCase())
+  return index > 0 ? fileName.slice(index).toLowerCase() : ''
+}
+
+function kindOf(fileName: string): MediaKind | null {
+  const ext = extOf(fileName)
+  if (IMAGE_EXTS.has(ext)) return 'image'
+  if (VIDEO_EXTS.has(ext)) return 'video'
+  if (AUDIO_EXTS.has(ext)) return 'audio'
+  return null
 }
 
 const TYPE_FILTERS: Array<{ value: AssetType | 'all'; label: string }> = [
@@ -37,8 +50,8 @@ export default function LibraryPage() {
   /** 重命名用行内输入，避免再弹一层窗口；prompt 在 Electron 里不可用 */
   const [renaming, setRenaming] = useState<{ id: number; value: string } | null>(null)
   const [propsItem, setPropsItem] = useState<LocalFileProps | null>(null)
-  /** 非空时打开图片处理面板；存 id 而不是整条记录，避免处理期间列表刷新后引用过期 */
-  const [mediaTargets, setMediaTargets] = useState<number[] | null>(null)
+  /** 非空时打开处理面板；kind 决定用图片还是音视频面板 */
+  const [mediaTargets, setMediaTargets] = useState<{ ids: number[]; kind: MediaKind } | null>(null)
 
   // 筛选条件作为依赖：改类型或关键词就回第一页，避免停在超出范围的页码上
   const load = useCallback(
@@ -170,10 +183,11 @@ export default function LibraryPage() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const missingCount = items.filter((item) => item.status === 'missing').length
   const filtered = keyword !== '' || type !== 'all'
-  // 批量处理要求整批都是图片；混入视频时按钮置灰，避免主进程整批拒绝
+  // 批量处理要求整批同一类型；混入其他类型时按钮置灰，避免主进程整批拒绝
   const selectedItems = items.filter((item) => selected.includes(item.id))
-  const mediaEligible =
-    selectedItems.length > 0 && selectedItems.every((item) => isImageFile(item.fileName))
+  const selectedKinds = new Set(selectedItems.map((item) => kindOf(item.fileName)))
+  const mediaKind =
+    selectedItems.length > 0 && selectedKinds.size === 1 ? [...selectedKinds][0] : null
 
   return (
     <div className="page">
@@ -263,11 +277,11 @@ export default function LibraryPage() {
             <button
               type="button"
               className="btn btn--small"
-              disabled={!mediaEligible}
-              title={mediaEligible ? '格式转换、压缩或编辑' : '只支持图片，且选中项必须全部是图片'}
-              onClick={() => setMediaTargets(selected)}
+              disabled={!mediaKind}
+              title={mediaKind ? '格式转换、压缩或编辑' : '只支持同类文件批量处理（图片、视频或音频）'}
+              onClick={() => mediaKind && setMediaTargets({ ids: selected, kind: mediaKind })}
             >
-              图片处理…
+              处理…
             </button>
             <button
               type="button"
@@ -402,11 +416,16 @@ export default function LibraryPage() {
                     >
                       属性
                     </button>
-                    {!missing && isImageFile(item.fileName) ? (
+                    {!missing && kindOf(item.fileName) ? (
                       <button
                         type="button"
                         className="btn btn--small"
-                        onClick={() => setMediaTargets([item.id])}
+                        onClick={() =>
+                          setMediaTargets({
+                            ids: [item.id],
+                            kind: kindOf(item.fileName) as MediaKind
+                          })
+                        }
                       >
                         处理
                       </button>
@@ -463,9 +482,18 @@ export default function LibraryPage() {
         />
       ) : null}
 
-      {mediaTargets ? (
+      {mediaTargets?.kind === 'image' ? (
         <ImageProcessDialog
-          fileIds={mediaTargets}
+          fileIds={mediaTargets.ids}
+          onClose={() => setMediaTargets(null)}
+          onDone={() => void load(page)}
+        />
+      ) : null}
+
+      {mediaTargets && mediaTargets.kind !== 'image' ? (
+        <MediaProcessDialog
+          fileIds={mediaTargets.ids}
+          kind={mediaTargets.kind}
           onClose={() => setMediaTargets(null)}
           onDone={() => void load(page)}
         />

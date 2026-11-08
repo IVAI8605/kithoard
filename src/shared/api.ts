@@ -13,8 +13,8 @@ import type {
   LocalFileProps,
   LocalFileQuery,
   MediaProgressEvent,
+  MediaProcessOptions,
   MediaTask,
-  ImageProcessOptions,
   QuarantineItem,
   RecoveryReport,
   FavoritePage,
@@ -119,7 +119,7 @@ export interface KithoardApi {
   }
   /** V0.4 图片处理：转换、压缩、编辑；批量逐条推送进度 */
   media: {
-    start: (fileIds: number[], options: ImageProcessOptions) => Promise<ApiResult<{ taskId: string }>>
+    start: (fileIds: number[], options: MediaProcessOptions) => Promise<ApiResult<{ taskId: string }>>
     cancel: (taskId: string) => Promise<ApiResult<{ ok: true }>>
     list: () => Promise<ApiResult<MediaTask[]>>
     /** 返回取消订阅函数；页面卸载时调用 */

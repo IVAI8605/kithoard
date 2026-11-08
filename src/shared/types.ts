@@ -308,6 +308,16 @@ export type ImageFormat = 'jpeg' | 'png' | 'webp' | 'avif'
 
 export type ImageAction = 'convert' | 'compress' | 'edit'
 
+/** V0.5 音视频处理动作；图片与音视频共用同一套媒体处理通道 */
+export type MediaAction =
+  | ImageAction
+  | 'videoConvert'
+  | 'videoCompress'
+  | 'videoScreenshot'
+  | 'audioConvert'
+  | 'audioCompress'
+  | 'audioExtract'
+
 /** 裁剪坐标以左上角为原点，单位像素；旋转为顺时针角度 */
 export interface ImageEditOptions {
   crop?: { left: number; top: number; width: number; height: number }
@@ -325,6 +335,50 @@ export interface ImageProcessOptions {
   edit?: ImageEditOptions
 }
 
+export interface VideoConvertOptions {
+  action: 'videoConvert'
+  crf?: number
+  width?: number
+  height?: number
+  bitrate?: string
+}
+
+export interface VideoCompressOptions {
+  action: 'videoCompress'
+}
+
+export interface VideoScreenshotOptions {
+  action: 'videoScreenshot'
+  /** 指定时间，如 "00:00:05" */
+  at: string
+}
+
+export interface AudioConvertOptions {
+  action: 'audioConvert'
+  bitrate?: string
+  format?: 'mp3' | 'aac' | 'wav' | 'flac'
+}
+
+export interface AudioCompressOptions {
+  action: 'audioCompress'
+}
+
+export interface AudioExtractOptions {
+  action: 'audioExtract'
+  start: string
+  end: string
+}
+
+/** V0.4/V0.5 媒体处理入参；图片与音视频共用同一套通道 */
+export type MediaProcessOptions =
+  | ImageProcessOptions
+  | VideoConvertOptions
+  | VideoCompressOptions
+  | VideoScreenshotOptions
+  | AudioConvertOptions
+  | AudioCompressOptions
+  | AudioExtractOptions
+
 export type MediaTaskState = 'queued' | 'running' | 'completed' | 'failed'
 
 export interface MediaTaskItem {
@@ -340,7 +394,7 @@ export interface MediaTaskItem {
 
 export interface MediaTask {
   taskId: string
-  action: ImageAction
+  action: MediaAction
   total: number
   done: number
   failed: number

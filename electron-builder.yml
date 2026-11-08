@@ -23,6 +23,14 @@ asarUnpack:
 # 强制 rebuild 反而会因缺少编译环境失败
 npmRebuild: false
 
+# FFmpeg 静态二进制随包到 resources/bin；主进程按 process.resourcesPath 查找
+extraResources:
+  - from: resources/bin
+    to: bin
+    filter:
+      - ffmpeg.exe
+      - ffprobe.exe
+
 win:
   target:
     - dir
