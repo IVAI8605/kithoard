@@ -8,9 +8,10 @@ import FavoritesPage from './pages/FavoritesPage'
 import LibraryPage from './pages/LibraryPage'
 import SearchPage from './pages/SearchPage'
 import SettingsPage from './pages/SettingsPage'
+import SitesPage from './pages/SitesPage'
 import { useAppStore } from './store'
 
-type NavKey = 'search' | 'downloads' | 'library' | 'favorites' | 'settings'
+type NavKey = 'search' | 'downloads' | 'library' | 'favorites' | 'sites' | 'settings'
 /** 详情页记住从哪来的，返回时不会把用户莫名送回首页 */
 type View = { name: NavKey } | { name: 'detail'; assetId: number; from: NavKey }
 
@@ -19,6 +20,7 @@ const BACK_LABELS: Record<NavKey, string> = {
   downloads: '返回下载管理',
   library: '返回本地素材',
   favorites: '返回收藏夹',
+  sites: '返回网站导航',
   settings: '返回设置'
 }
 
@@ -94,6 +96,7 @@ export default function App() {
             onOpenDetail={(assetId) => setView({ name: 'detail', assetId, from: 'favorites' })}
           />
         ) : null}
+        {view.name === 'sites' ? <SitesPage /> : null}
         {view.name === 'settings' ? <SettingsPage /> : null}
         {view.name === 'detail' ? (
           <DetailView

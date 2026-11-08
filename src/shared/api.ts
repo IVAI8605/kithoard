@@ -3,6 +3,8 @@ import type {
   AssetType,
   BackupExportResult,
   BackupImportResult,
+  BrowserRecentItem,
+  BrowserState,
   ClearResult,
   ClearScope,
   DownloadProgressEvent,
@@ -124,6 +126,21 @@ export interface KithoardApi {
     list: () => Promise<ApiResult<MediaTask[]>>
     /** 返回取消订阅函数；页面卸载时调用 */
     onProgress: (listener: (event: MediaProgressEvent) => void) => () => void
+  }
+  /** V0.6 受限站内浏览：地址栏、前进后退、最近访问；安全策略全在主进程 */
+  browser: {
+    open: (url: string) => Promise<ApiResult<BrowserState>>
+    /** go 需要 url；back/forward/reload/stop 不需要 */
+    navigate: (
+      action: 'back' | 'forward' | 'reload' | 'stop' | 'go',
+      url?: string
+    ) => Promise<ApiResult<BrowserState>>
+    /** 渲染层占位区域的窗口坐标（DIP） */
+    setBounds: (bounds: { x: number; y: number; width: number; height: number }) => Promise<ApiResult<{ ok: true }>>
+    hide: () => Promise<ApiResult<{ ok: true }>>
+    recent: () => Promise<ApiResult<BrowserRecentItem[]>>
+    external: (url: string) => Promise<ApiResult<{ ok: true }>>
+    onState: (listener: (event: BrowserState) => void) => () => void
   }
 }
 

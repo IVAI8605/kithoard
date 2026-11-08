@@ -3,6 +3,7 @@ import path from 'node:path'
 import { CHANNELS } from '@shared/channels'
 import { fail, isAppError, ok, type Envelope } from '@shared/errors'
 import { cleanCache } from '../cache/clean'
+import { createBrowserService } from '../browser'
 import { createDownloadEngine } from '../download/engine'
 import { log } from '../log'
 import { getApiKey } from '../settings'
@@ -78,6 +79,7 @@ export function registerIpc(deps: { userDataDir: string }): { shutdown: () => vo
   // 清空下载历史前需要先停引擎，所以 reset 也必须在 engine 之后创建
   const reset = createResetService({ engine })
   const media = createMediaService({ notify: emit })
+  const browser = createBrowserService({ notify: emit })
 
   // §7.5-8：启动时清一次超过 7 天的缩略图与响应缓存；只动 cache，不碰下载临时文件
   const cleaned = cleanCache(cacheRoot)
@@ -151,6 +153,30 @@ export function registerIpc(deps: { userDataDir: string }): { shutdown: () => vo
   ipcMain.handle(
     CHANNELS.mediaList,
     wrap(() => media.list())
+  )
+  ipcMain.handle(
+    CHANNELS.browserOpen,
+    wrap((arg) => browser.open(arg))
+  )
+  ipcMain.handle(
+    CHANNELS.browserNavigate,
+    wrap((arg) => browser.navigate(arg))
+  )
+  ipcMain.handle(
+    CHANNELS.browserBounds,
+    wrap((arg) => browser.setBounds(arg))
+  )
+  ipcMain.handle(
+    CHANNELS.browserHide,
+    wrap(() => browser.hide())
+  )
+  ipcMain.handle(
+    CHANNELS.browserRecent,
+    wrap(() => browser.recent())
+  )
+  ipcMain.handle(
+    CHANNELS.browserExternal,
+    wrap((arg) => browser.external(arg))
   )
   ipcMain.handle(
     CHANNELS.copyText,

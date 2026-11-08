@@ -2,14 +2,22 @@ import fs from 'node:fs'
 import path from 'node:path'
 import Database from 'better-sqlite3'
 import { makeError } from '@shared/errors'
-import { log } from '../log'
 import { LATEST_VERSION, MIGRATIONS } from './migrations'
 
 // 全应用唯一写库入口：其他模块只能通过这里拿连接，避免多处直接打开文件
 let instance: Database.Database | null = null
+/** 恢复事件留给启动层记录日志；db 层不直接依赖 Electron 日志模块，保证单测可跑 */
+let recoveryNotice: { detail: string } | null = null
 
 /** §7.8-7：启动成功后刷新 .bak，最长间隔一周 */
 const BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000
+
+/** 启动层调用一次：返回本次是否从 .bak 恢复过，并清空标记 */
+export function consumeRecoveryNotice(): { detail: string } | null {
+  const value = recoveryNotice
+  recoveryNotice = null
+  return value
+}
 
 export function openDatabase(userDataDir: string): Database.Database {
   fs.mkdirSync(userDataDir, { recursive: true })
@@ -42,7 +50,7 @@ function openOrRecover(file: string): Database.Database {
 
     const stamp = Date.now()
     const detail = firstError instanceof Error ? firstError.message : String(firstError)
-    log.warn(`db corrupt, restoring from .bak: ${detail}`)
+    recoveryNotice = { detail }
     safeRename(file, `${file}.corrupt-${stamp}`)
     // WAL/SHM 属于同一份损坏库，一并改名，避免干扰恢复后的新库
     safeRename(`${file}-wal`, `${file}.corrupt-${stamp}.wal`)
@@ -50,7 +58,6 @@ function openOrRecover(file: string): Database.Database {
     fs.copyFileSync(backup, file)
 
     try {
-      log.info('db restored from backup')
       return openChecked(file)
     } catch (secondError) {
       throw makeError(

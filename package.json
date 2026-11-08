@@ -1,6 +1,6 @@
 {
   "name": "kithoard",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Kithoard 栖材坞 · 本地素材中转站",
   "private": true,
   "license": "UNLICENSED",
@@ -17,6 +17,7 @@
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "fetch:ffmpeg": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/fetch-ffmpeg.ps1",
     "pack:dir": "electron-builder --dir",
+    "build:win": "electron-builder --win nsis --publish never",
     "gate": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify.ps1"
   },
   "dependencies": {

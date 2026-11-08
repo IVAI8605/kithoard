@@ -62,7 +62,15 @@ export const CHANNELS = {
   mediaStart: 'media:start',
   mediaCancel: 'media:cancel',
   mediaList: 'media:list',
-  mediaProgress: 'media:progress'
+  mediaProgress: 'media:progress',
+  // V0.6 受限站内浏览：视图在主进程，渲染层只上报占位区域位置
+  browserOpen: 'browser:open',
+  browserNavigate: 'browser:navigate',
+  browserBounds: 'browser:bounds',
+  browserHide: 'browser:hide',
+  browserRecent: 'browser:recent',
+  browserExternal: 'browser:external',
+  browserState: 'browser:state'
 } as const
 
 /** 渲染层可读的设置键白名单；不在表内的键一律拒绝 */

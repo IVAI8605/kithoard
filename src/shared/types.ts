@@ -409,3 +409,22 @@ export interface MediaProgressEvent {
   failed: number
   item: MediaTaskItem
 }
+
+/** V0.6 受限站内浏览：主进程维护的视图状态，渲染层只负责显示地址栏与占位区域 */
+export interface BrowserState {
+  url: string
+  title: string
+  canGoBack: boolean
+  canGoForward: boolean
+  loading: boolean
+  /** 安全策略给用户的可读提示，例如「登录页已转系统浏览器」 */
+  notice: string | null
+  error: string | null
+}
+
+/** 最近访问 10 条：按 URL 去重，新的在前 */
+export interface BrowserRecentItem {
+  url: string
+  title: string
+  visitedAt: number
+}

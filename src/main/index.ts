@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { app, BrowserWindow, protocol } from 'electron'
-import { closeDatabase, openDatabase } from './db'
+import { closeDatabase, consumeRecoveryNotice, openDatabase } from './db'
 import { initLogging, log } from './log'
 import { registerIpc } from './ipc'
 import { registerThumbProtocol, THUMB_SCHEME } from './protocol'
@@ -17,6 +17,9 @@ app
     const userData = app.getPath('userData')
     initLogging(userData)
     openDatabase(userData)
+    // 数据库层不依赖日志模块；恢复事件在这里记一次，排查时有迹可循
+    const recovery = consumeRecoveryNotice()
+    if (recovery) log.warn(`db restored from .bak: ${recovery.detail}`)
     registerThumbProtocol(path.join(userData, 'cache', 'thumbs'))
     const runtime = registerIpc({ userDataDir: userData })
     createMainWindow()

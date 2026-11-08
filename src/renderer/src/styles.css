@@ -1614,3 +1614,106 @@ input {
     justify-content: flex-end;
   }
 }
+
+/* V0.6 站内浏览：地址栏与占位区域；WebContentsView 会盖在占位区域上 */
+.sites-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.sites-bar input {
+  flex: 1;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.sites-bar input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.sites-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.sites-status {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.sites-holder {
+  height: 56vh;
+  min-height: 320px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sites-holder__hint {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.sites-recent {
+  margin-top: 18px;
+}
+
+.sites-recent h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.sites-recent__empty {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.sites-recent__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.sites-recent__item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.sites-recent__item:hover {
+  border-color: var(--accent);
+}
+
+.sites-recent__title {
+  font-size: 13px;
+}
+
+.sites-recent__meta {
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}

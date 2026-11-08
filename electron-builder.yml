@@ -33,5 +33,16 @@ extraResources:
 
 win:
   target:
-    - dir
+    - nsis
   artifactName: Kithoard-${version}-x64.${ext}
+
+# V0.6 安装包：可选安装目录、桌面与开始菜单快捷方式；卸载默认保留用户数据与素材
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Kithoard 栖材坞
+  deleteAppDataOnUninstall: false
+  artifactName: Kithoard-Setup-${version}-x64.${ext}
