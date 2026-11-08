@@ -16,6 +16,7 @@ import { createLibraryService } from '../services/library'
 import { createQuarantineService } from '../services/quarantine'
 import { runStartupRecovery } from '../services/recovery'
 import { createRecentService } from '../services/recent'
+import { createResetService } from '../services/reset'
 import { createSearchService } from '../services/search'
 import { createSettingsService } from '../services/settings'
 import { createSourceService } from '../services/sources'
@@ -73,6 +74,8 @@ export function registerIpc(deps: { userDataDir: string }): { shutdown: () => vo
   const quarantine = createQuarantineService({ notify: emit })
   const library = createLibraryService()
   const favorite = createFavoriteService()
+  // 清空下载历史前需要先停引擎，所以 reset 也必须在 engine 之后创建
+  const reset = createResetService({ engine })
 
   // §7.5-8：启动时清一次超过 7 天的缩略图与响应缓存；只动 cache，不碰下载临时文件
   const cleaned = cleanCache(cacheRoot)
@@ -130,6 +133,10 @@ export function registerIpc(deps: { userDataDir: string }): { shutdown: () => vo
   ipcMain.handle(
     CHANNELS.settingsRestore,
     wrap(() => settings.importBackup())
+  )
+  ipcMain.handle(
+    CHANNELS.settingsClearData,
+    wrap((arg) => reset.clearData(arg))
   )
   ipcMain.handle(
     CHANNELS.copyText,

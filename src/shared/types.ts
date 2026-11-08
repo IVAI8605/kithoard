@@ -287,3 +287,15 @@ export interface BackupImportResult {
   path: string | null
   summary: RestoreSummary | null
 }
+
+/**
+ * 清空数据的范围（§7.5-7）。
+ * 三类数据各自独立；all 只合并这三类，不删本地素材记录与磁盘文件。
+ */
+export type ClearScope = 'favorites' | 'downloads' | 'settings' | 'all'
+
+export interface ClearResult {
+  favorites: number
+  downloads: number
+  settings: number
+}

@@ -55,7 +55,9 @@ export const CHANNELS = {
   settingsCleanCache: 'settings:cleanCache',
   // V0.3 备份：导出只含数据不含 Key，导入按 §5.7 算法重建
   settingsBackup: 'settings:backup',
-  settingsRestore: 'settings:restore'
+  settingsRestore: 'settings:restore',
+  // V0.3 清空数据：只删库里的收藏/下载历史/设置，不碰本地素材文件
+  settingsClearData: 'settings:clearData'
 } as const
 
 /** 渲染层可读的设置键白名单；不在表内的键一律拒绝 */

@@ -3,6 +3,8 @@ import type {
   AssetType,
   BackupExportResult,
   BackupImportResult,
+  ClearResult,
+  ClearScope,
   DownloadProgressEvent,
   DownloadStateEvent,
   DownloadTask,
@@ -49,6 +51,8 @@ export interface KithoardApi {
     exportBackup: () => Promise<ApiResult<BackupExportResult>>
     /** 导入数据备份；用户取消时 summary 为 null */
     importBackup: () => Promise<ApiResult<BackupImportResult>>
+    /** 按范围清空收藏/下载历史/个人设置；不删除本地素材文件 */
+    clearData: (scope: ClearScope) => Promise<ApiResult<ClearResult>>
   }
   clipboard: {
     writeText: (text: string) => Promise<ApiResult<{ ok: true }>>

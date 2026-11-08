@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
+import type { ClearScope } from '@shared/types'
 import { formatSize } from '../format'
 import { useAppStore } from '../store'
+
+const CLEAR_LABELS: Record<ClearScope, string> = {
+  favorites: '收藏夹',
+  downloads: '下载历史',
+  settings: '个人设置（含已保存的 API Key）',
+  all: '全部数据（收藏夹 + 下载历史 + 个人设置）'
+}
 
 /**
  * 设置页（§7.5-3）：并发、保存目录、缓存、源开关与 Key。
@@ -21,6 +29,7 @@ export default function SettingsPage() {
   const [cacheBytes, setCacheBytes] = useState(0)
   /** 每个源一份输入值，切换源或新增源都不用改结构 */
   const [keyInputs, setKeyInputs] = useState<Record<string, string>>({})
+  const [clearScope, setClearScope] = useState<ClearScope>('favorites')
   const [toast, setToast] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -137,6 +146,29 @@ export default function SettingsPage() {
     await Promise.all([load(), loadSources(), loadFavoriteIds(), loadDownloads(), loadRecent()])
   }
 
+  const clearDataNow = async (): Promise<void> => {
+    const withKeys = clearScope === 'settings' || clearScope === 'all'
+    const confirmed = window.confirm(
+      `确定清空${CLEAR_LABELS[clearScope]}吗？此操作不可撤销。` +
+        (withKeys ? '\n\n个人设置里包含已保存的 API Key，清空后需要重新填写。' : '') +
+        '\n\n已下载的素材文件不会被删除，本地素材记录也会保留。'
+    )
+    if (!confirmed) return
+
+    setBusy(true)
+    const result = await window.api.settings.clearData(clearScope)
+    setBusy(false)
+    if (!result.ok) {
+      setToast(result.error.message)
+      return
+    }
+    const { favorites, downloads, settings } = result.data
+    setToast(
+      `已清空：收藏 ${favorites} 条、下载记录 ${downloads} 条、设置 ${settings} 项；素材文件保留`
+    )
+    await Promise.all([load(), loadSources(), loadFavoriteIds(), loadDownloads(), loadRecent()])
+  }
+
   return (
     <div className="page">
       <header className="page__head">
@@ -230,6 +262,40 @@ export default function SettingsPage() {
               onClick={() => void importBackupNow()}
             >
               导入…
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="settings-block">
+        <h2>清空数据</h2>
+        <div className="settings-row">
+          <div>
+            <p className="settings-row__label">按范围清空</p>
+            <p className="settings-row__value">
+              只删除应用内的记录，不会删除已下载的素材文件；本地素材页里的文件记录会保留。
+              清空后无法撤销，建议先导出一份备份。
+            </p>
+          </div>
+          <div className="settings-inline">
+            <select
+              value={clearScope}
+              aria-label="清空范围"
+              disabled={busy}
+              onChange={(event) => setClearScope(event.target.value as ClearScope)}
+            >
+              <option value="favorites">仅收藏夹</option>
+              <option value="downloads">仅下载历史</option>
+              <option value="settings">仅个人设置</option>
+              <option value="all">全部（收藏 + 下载 + 设置）</option>
+            </select>
+            <button
+              type="button"
+              className="btn btn--small"
+              disabled={busy}
+              onClick={() => void clearDataNow()}
+            >
+              清空…
             </button>
           </div>
         </div>
