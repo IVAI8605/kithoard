@@ -3,6 +3,8 @@ export const CHANNELS = {
   sourceList: 'source:list',
   searchRun: 'search:run',
   assetDetail: 'asset:detail',
+  // V0.1 验收第 9 条要求「关软件重开能重新打开同一条素材详情」，靠这个通道读回本地已落库的记录
+  assetRecent: 'asset:recent',
   settingsGet: 'settings:get',
   settingsSet: 'settings:set',
   // 规划表里没有复制通道；V0.1 需要「复制来源链接」，用主进程剪贴板避免依赖页面安全上下文

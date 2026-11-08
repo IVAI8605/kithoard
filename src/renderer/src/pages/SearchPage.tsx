@@ -36,10 +36,18 @@ export default function SearchPage({ onOpenDetail }: Props) {
   const setType = useAppStore((state) => state.setType)
   const setSettingsOpen = useAppStore((state) => state.setSettingsOpen)
   const runSearch = useAppStore((state) => state.runSearch)
+  const recent = useAppStore((state) => state.recent)
+  const recentLoaded = useAppStore((state) => state.recentLoaded)
+  const loadRecent = useAppStore((state) => state.loadRecent)
 
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [preview, setPreview] = useState<SearchResultItem | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+
+  // 首页一进来（含刚启动）就把本地记录读出来，用户不必先搜一次才能找回上次看的素材
+  useEffect(() => {
+    if (status === 'idle') void loadRecent()
+  }, [status, loadRecent])
 
   useEffect(() => {
     if (!toast) return
@@ -216,10 +224,32 @@ export default function SearchPage({ onOpenDetail }: Props) {
       ) : null}
 
       {status === 'idle' ? (
-        <section className="state">
-          <p className="state__title">输入关键词开始搜索</p>
-          <p className="state__text">当前支持 Pixabay 的图片与视频，单页 20 条。</p>
-        </section>
+        recent.length > 0 ? (
+          <section className="recent" aria-label="最近浏览">
+            <div className="recent__head">
+              <h2 className="recent__title">最近浏览</h2>
+              <p className="recent__note">上次查看过的素材，关掉软件再回来点开还是同一条。</p>
+            </div>
+            <div className="grid">
+              {recent.map((item) => (
+                <AssetCard
+                  key={item.id}
+                  item={item}
+                  onPreview={setPreview}
+                  onOpen={onOpenDetail}
+                  onMenu={(target, point) => setMenu({ item: target, ...point })}
+                />
+              ))}
+            </div>
+          </section>
+        ) : (
+          <section className="state">
+            <p className="state__title">输入关键词开始搜索</p>
+            <p className="state__text">
+              {recentLoaded ? '当前支持 Pixabay 的图片与视频，单页 20 条。' : '正在读取本地记录…'}
+            </p>
+          </section>
+        )
       ) : null}
 
       {result?.sourceNotice ? (

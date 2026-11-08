@@ -360,6 +360,32 @@ input {
   margin-top: 20px;
 }
 
+/* 首页空态下的「最近浏览」：与搜索结果区分开，避免误以为是本次搜索的结果 */
+.recent {
+  margin-top: 24px;
+}
+
+.recent__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.recent__title {
+  margin: 0;
+  color: var(--text-dim);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.recent__note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .result-meta {
   display: flex;
   flex-wrap: wrap;

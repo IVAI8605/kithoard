@@ -11,7 +11,8 @@ const api: KithoardApi = {
     run: (query) => ipcRenderer.invoke(CHANNELS.searchRun, query)
   },
   asset: {
-    detail: (assetId) => ipcRenderer.invoke(CHANNELS.assetDetail, { assetId })
+    detail: (assetId) => ipcRenderer.invoke(CHANNELS.assetDetail, { assetId }),
+    recent: (limit) => ipcRenderer.invoke(CHANNELS.assetRecent, { limit })
   },
   settings: {
     get: (key) => ipcRenderer.invoke(CHANNELS.settingsGet, { key }),

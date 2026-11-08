@@ -8,6 +8,7 @@ import { createSourceRegistry } from '../sources'
 import type { SourceRegistry } from '../sources/registry'
 import { createClipboardService } from '../services/clipboard'
 import { createDetailService } from '../services/detail'
+import { createRecentService } from '../services/recent'
 import { createSearchService } from '../services/search'
 import { createSettingsService } from '../services/settings'
 import { createSourceService } from '../services/sources'
@@ -43,6 +44,7 @@ export function registerIpc(deps: { userDataDir: string }): void {
   const sources = createSourceService({ registry })
   const search = createSearchService({ registry, thumbsDir: path.join(cacheRoot, 'thumbs') })
   const detail = createDetailService({ registry, thumbsDir: path.join(cacheRoot, 'thumbs') })
+  const recent = createRecentService({ registry, thumbsDir: path.join(cacheRoot, 'thumbs') })
   const settings = createSettingsService({ registry })
   const clipboard = createClipboardService()
 
@@ -57,6 +59,10 @@ export function registerIpc(deps: { userDataDir: string }): void {
   ipcMain.handle(
     CHANNELS.assetDetail,
     wrap((arg) => detail.get(arg))
+  )
+  ipcMain.handle(
+    CHANNELS.assetRecent,
+    wrap((arg) => recent.list(arg))
   )
   ipcMain.handle(
     CHANNELS.settingsGet,

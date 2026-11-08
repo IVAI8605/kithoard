@@ -23,7 +23,11 @@ interface AppState {
   items: SearchResultItem[]
   result: SearchPageResult | null
   error: AppError | null
+  /** 本地已落库的最近记录；与搜索结果分开存，避免互相覆盖 */
+  recent: SearchResultItem[]
+  recentLoaded: boolean
   loadSources: () => Promise<void>
+  loadRecent: () => Promise<void>
   setKeyword: (value: string) => void
   setType: (value: SearchableType) => void
   setSettingsOpen: (open: boolean) => void
@@ -45,6 +49,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   items: [],
   result: null,
   error: null,
+  recent: [],
+  recentLoaded: false,
 
   loadSources: async () => {
     const [sourceResult, storageResult] = await Promise.all([
@@ -59,6 +65,12 @@ export const useAppStore = create<AppState>((set, get) => ({
           ? storageResult.data
           : null
     })
+  },
+
+  // 只读本地库，不联网；失败也置为已加载，避免首页一直停在「加载中」
+  loadRecent: async () => {
+    const result = await window.api.asset.recent(12)
+    set({ recentLoaded: true, recent: result.ok ? result.data : [] })
   },
 
   setKeyword: (value) => set({ keyword: value }),
