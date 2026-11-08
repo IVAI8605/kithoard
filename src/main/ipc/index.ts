@@ -92,6 +92,14 @@ export function registerIpc(deps: { userDataDir: string }): { shutdown: () => vo
     wrap((arg) => search.search(arg))
   )
   ipcMain.handle(
+    CHANNELS.searchRunGrouped,
+    wrap((arg) => search.searchGrouped(arg))
+  )
+  ipcMain.handle(
+    CHANNELS.searchRunSource,
+    wrap((arg) => search.searchSource(arg))
+  )
+  ipcMain.handle(
     CHANNELS.assetDetail,
     wrap((arg) => detail.get(arg))
   )

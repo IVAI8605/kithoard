@@ -9,7 +9,9 @@ const api: KithoardApi = {
     list: () => ipcRenderer.invoke(CHANNELS.sourceList)
   },
   search: {
-    run: (query) => ipcRenderer.invoke(CHANNELS.searchRun, query)
+    run: (query) => ipcRenderer.invoke(CHANNELS.searchRun, query),
+    runGrouped: (query) => ipcRenderer.invoke(CHANNELS.searchRunGrouped, query),
+    runSource: (sourceId, query) => ipcRenderer.invoke(CHANNELS.searchRunSource, { sourceId, ...query })
   },
   asset: {
     detail: (assetId) => ipcRenderer.invoke(CHANNELS.assetDetail, { assetId }),

@@ -6,7 +6,7 @@ import type {
   DownloadTask,
   QuarantineItem,
   RecoveryReport,
-  SearchPageResult,
+  SearchGroup,
   SearchResultItem,
   SearchableType,
   SourceInfo
@@ -22,11 +22,10 @@ interface AppState {
   settingsOpen: boolean
   keyword: string
   type: SearchableType
-  page: number
   pageSize: number
   status: LoadStatus
-  items: SearchResultItem[]
-  result: SearchPageResult | null
+  /** 按源分组的结果；每组独立分页，界面不做跨源合并排序 */
+  groups: SearchGroup[]
   error: AppError | null
   /** 本地已落库的最近记录；与搜索结果分开存，避免互相覆盖 */
   recent: SearchResultItem[]
@@ -49,8 +48,10 @@ interface AppState {
   setKeyword: (value: string) => void
   setType: (value: SearchableType) => void
   setSettingsOpen: (open: boolean) => void
-  runSearch: (nextPage?: number) => Promise<void>
-  saveApiKey: (key: string) => Promise<AppError | null>
+  runSearch: () => Promise<void>
+  /** 组内翻页：只请求该源，其他组保持不动 */
+  loadGroupPage: (sourceId: string, page: number) => Promise<void>
+  saveApiKey: (sourceId: string, key: string) => Promise<AppError | null>
   toggleSource: (id: string, enabled: boolean) => Promise<AppError | null>
   setRecovery: (report: RecoveryReport) => void
   loadDownloads: () => Promise<void>
@@ -75,11 +76,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   settingsOpen: false,
   keyword: '',
   type: 'image',
-  page: 1,
   pageSize: 20,
   status: 'idle',
-  items: [],
-  result: null,
+  groups: [],
   error: null,
   recent: [],
   recentLoaded: false,
@@ -116,27 +115,56 @@ export const useAppStore = create<AppState>((set, get) => ({
   setType: (value) => set({ type: value }),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
 
-  runSearch: async (nextPage) => {
+  runSearch: async () => {
     const { keyword, type, pageSize } = get()
     const trimmed = keyword.trim()
     if (!trimmed) return
-    const page = nextPage ?? 1
-    set({ status: 'loading', error: null, page })
+    set({ status: 'loading', error: null })
 
-    const result = await window.api.search.run({ keyword: trimmed, type, page, pageSize })
+    const result = await window.api.search.runGrouped({
+      keyword: trimmed,
+      type,
+      page: 1,
+      pageSize
+    })
     if (!result.ok) {
-      set({ status: 'error', error: result.error, items: [], result: null })
+      set({ status: 'error', error: result.error, groups: [] })
       return
     }
+
+    const groups = result.data.groups
+    // 全部失败才算整体错误；只要有一个源出结果，就让用户先看到能看的部分
+    const allFailed = groups.length > 0 && groups.every((group) => group.error !== null)
+    const hasItems = groups.some((group) => group.items.length > 0)
     set({
-      status: result.data.items.length === 0 ? 'empty' : 'ready',
-      items: result.data.items,
-      result: result.data
+      groups,
+      status: allFailed ? 'error' : hasItems ? 'ready' : 'empty',
+      error: allFailed ? (groups[0]?.error ?? null) : null
     })
   },
 
-  saveApiKey: async (key) => {
-    const result = await window.api.settings.set('source.apiKey.pixabay', key)
+  loadGroupPage: async (sourceId, page) => {
+    const { keyword, type, pageSize } = get()
+    const trimmed = keyword.trim()
+    if (!trimmed) return
+
+    const result = await window.api.search.runSource(sourceId, {
+      keyword: trimmed,
+      type,
+      page,
+      pageSize
+    })
+    set((state) => ({
+      groups: state.groups.map((group) => {
+        if (group.sourceId !== sourceId) return group
+        if (!result.ok) return { ...group, error: result.error, items: [] }
+        return { ...group, ...result.data, error: null }
+      })
+    }))
+  },
+
+  saveApiKey: async (sourceId, key) => {
+    const result = await window.api.settings.set(`source.apiKey.${sourceId}`, key)
     if (!result.ok) return result.error
     await get().loadSources()
     return null

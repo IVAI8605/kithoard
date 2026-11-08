@@ -1,3 +1,5 @@
+import type { AppError } from './errors'
+
 /** 素材类型。V0.1 仅开放 image / video，其余类型在界面上置灰。 */
 export type AssetType = 'image' | 'video' | 'audio' | 'font' | 'template'
 
@@ -57,6 +59,24 @@ export interface SearchPageResult {
   rateLimitRemaining: number | null
   /** Pixabay 条款要求展示来源，适配器给出固定文案；无此要求的源为 null */
   sourceNotice: { text: string; url: string } | null
+}
+
+/** 按源分组的一组搜索结果；单源失败只影响该组，不拖垮其他源 */
+export interface SearchGroup {
+  sourceId: string
+  sourceName: string
+  items: SearchResultItem[]
+  page: number
+  pageSize: number
+  totalHits: number
+  hasNext: boolean
+  rateLimitRemaining: number | null
+  sourceNotice: { text: string; url: string } | null
+  error: AppError | null
+}
+
+export interface GroupedSearchResult {
+  groups: SearchGroup[]
 }
 
 export interface AssetDetail {

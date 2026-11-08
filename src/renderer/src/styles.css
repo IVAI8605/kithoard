@@ -1334,6 +1334,53 @@ input {
   margin-top: 10px;
 }
 
+/* 多个素材源之间用分隔线隔开，避免两块 Key 输入混在一起 */
+.settings-source + .settings-source {
+  margin-top: 14px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+
+/* 搜索结果的来源分组：每组独立标题与分页，不做跨源合并 */
+.source-group + .source-group {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.source-group__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.source-group__head h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.source-group__meta {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.source-group__error {
+  color: var(--danger);
+  font-size: 12.5px;
+}
+
+.source-group__notice {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.source-group__notice a {
+  color: var(--text-dim);
+}
+
 .dl-item__handle {
   flex: none;
   width: 16px;

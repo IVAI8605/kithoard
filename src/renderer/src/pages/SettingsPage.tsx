@@ -15,12 +15,10 @@ export default function SettingsPage() {
   const [downloadDir, setDownloadDir] = useState('')
   const [concurrency, setConcurrency] = useState(3)
   const [cacheBytes, setCacheBytes] = useState(0)
-  const [keyInput, setKeyInput] = useState('')
+  /** 每个源一份输入值，切换源或新增源都不用改结构 */
+  const [keyInputs, setKeyInputs] = useState<Record<string, string>>({})
   const [toast, setToast] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-
-  const pixabay = sources.find((source) => source.id === 'pixabay')
-  const hasKey = Boolean(pixabay?.hasApiKey)
 
   const load = useCallback(async () => {
     const [dirResult, concurrencyResult, cacheResult] = await Promise.all([
@@ -85,15 +83,15 @@ export default function SettingsPage() {
     void load()
   }
 
-  const submitKey = async (value: string): Promise<void> => {
+  const submitKey = async (sourceId: string, value: string): Promise<void> => {
     setBusy(true)
-    const error = await saveApiKey(value)
+    const error = await saveApiKey(sourceId, value)
     setBusy(false)
     if (error) {
       setToast(error.message)
       return
     }
-    setKeyInput('')
+    setKeyInputs({ ...keyInputs, [sourceId]: '' })
     setToast(value ? 'Key 已保存' : 'Key 已清除')
   }
 
@@ -166,63 +164,81 @@ export default function SettingsPage() {
 
       <section className="settings-block">
         <h2>素材源</h2>
-        <div className="settings-row">
-          <div>
-            <p className="settings-row__label">Pixabay</p>
-            <p className="settings-row__value">
-              Key 状态：{hasKey ? '已配置' : '未配置'}。Key 只保存在本机，备份不会包含它。
-            </p>
-            {keyStorage === 'plaintext' ? (
-              <p className="dialog__warn">
-                当前系统不支持安全加密，Key 会以明文保存在本机数据库，请注意电脑本身的安全。
-              </p>
+        {sources.map((source) => (
+          <div key={source.id} className="settings-source">
+            <div className="settings-row">
+              <div>
+                <p className="settings-row__label">{source.name}</p>
+                <p className="settings-row__value">
+                  {source.requiresApiKey
+                    ? `Key 状态：${source.hasApiKey ? '已配置' : '未配置'}。Key 只保存在本机，备份不会包含它。`
+                    : '该来源无需 Key。'}
+                </p>
+                {keyStorage === 'plaintext' && source.requiresApiKey ? (
+                  <p className="dialog__warn">
+                    当前系统不支持安全加密，Key 会以明文保存在本机数据库，请注意电脑本身的安全。
+                  </p>
+                ) : null}
+              </div>
+              <label className="switch-row">
+                <input
+                  type="checkbox"
+                  checked={source.enabled}
+                  disabled={busy}
+                  onChange={(event) => {
+                    setBusy(true)
+                    void toggleSource(source.id, event.target.checked).then((error) => {
+                      setBusy(false)
+                      if (error) setToast(error.message)
+                    })
+                  }}
+                />
+                <span>启用</span>
+              </label>
+            </div>
+
+            {source.requiresApiKey ? (
+              <>
+                <form
+                  className="dialog__form"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    void submitKey(source.id, keyInputs[source.id] ?? '')
+                  }}
+                >
+                  <input
+                    type="password"
+                    value={keyInputs[source.id] ?? ''}
+                    onChange={(event) =>
+                      setKeyInputs({ ...keyInputs, [source.id]: event.target.value })
+                    }
+                    placeholder={
+                      source.hasApiKey ? '填入新 Key 可替换' : `粘贴 ${source.name} API Key`
+                    }
+                    aria-label={`${source.name} API Key`}
+                  />
+                  <button
+                    type="submit"
+                    className="btn btn--primary"
+                    disabled={busy || !(keyInputs[source.id] ?? '').trim()}
+                  >
+                    保存 Key
+                  </button>
+                </form>
+                {source.hasApiKey ? (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--small"
+                    disabled={busy}
+                    onClick={() => void submitKey(source.id, '')}
+                  >
+                    清除已保存的 Key
+                  </button>
+                ) : null}
+              </>
             ) : null}
           </div>
-          <label className="switch-row">
-            <input
-              type="checkbox"
-              checked={pixabay?.enabled ?? false}
-              disabled={busy}
-              onChange={(event) => {
-                setBusy(true)
-                void toggleSource('pixabay', event.target.checked).then((error) => {
-                  setBusy(false)
-                  if (error) setToast(error.message)
-                })
-              }}
-            />
-            <span>启用</span>
-          </label>
-        </div>
-
-        <form
-          className="dialog__form"
-          onSubmit={(event) => {
-            event.preventDefault()
-            void submitKey(keyInput)
-          }}
-        >
-          <input
-            type="password"
-            value={keyInput}
-            onChange={(event) => setKeyInput(event.target.value)}
-            placeholder={hasKey ? '填入新 Key 可替换' : '粘贴 Pixabay API Key'}
-            aria-label="Pixabay API Key"
-          />
-          <button type="submit" className="btn btn--primary" disabled={busy || !keyInput.trim()}>
-            保存 Key
-          </button>
-        </form>
-        {hasKey ? (
-          <button
-            type="button"
-            className="btn btn--ghost btn--small"
-            disabled={busy}
-            onClick={() => void submitKey('')}
-          >
-            清除已保存的 Key
-          </button>
-        ) : null}
+        ))}
       </section>
 
       {toast ? <div className="toast">{toast}</div> : null}

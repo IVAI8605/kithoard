@@ -11,6 +11,7 @@ import type {
   QuarantineItem,
   RecoveryReport,
   FavoritePage,
+  GroupedSearchResult,
   SearchPageResult,
   SearchQuery,
   SearchResultItem,
@@ -25,6 +26,10 @@ export interface KithoardApi {
   }
   search: {
     run: (query: SearchQuery) => Promise<ApiResult<SearchPageResult>>
+    /** 按启用源分组搜索；每组独立分页，不做跨源合并排序 */
+    runGrouped: (query: SearchQuery) => Promise<ApiResult<GroupedSearchResult>>
+    /** 只搜索指定源，用于组内翻页 */
+    runSource: (sourceId: string, query: SearchQuery) => Promise<ApiResult<SearchPageResult>>
   }
   asset: {
     detail: (assetId: number) => Promise<ApiResult<AssetDetail>>

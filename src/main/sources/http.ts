@@ -85,9 +85,18 @@ function mapHttpError(status: number): ReturnType<typeof makeError> {
 
 export async function fetchJson<T>(
   url: string,
-  options: { signal: AbortSignal; cacheDir?: string; timeoutMs?: number }
+  options: {
+    signal: AbortSignal
+    cacheDir?: string
+    timeoutMs?: number
+    /** 认证头等；参与缓存 key 的哈希，避免不同 Key 命中同一份响应 */
+    headers?: Record<string, string>
+  }
 ): Promise<JsonResult<T>> {
-  const cached = readCache<T>(url, options.cacheDir)
+  const cacheKey = options.headers
+    ? `${url}|${JSON.stringify(options.headers)}`
+    : url
+  const cached = readCache<T>(cacheKey, options.cacheDir)
   if (cached) {
     return { data: cached.data, headers: { 'x-cache': 'hit' } }
   }
@@ -97,7 +106,10 @@ export async function fetchJson<T>(
 
   let response: Response
   try {
-    response = await fetch(url, { signal, headers: { Accept: 'application/json' } })
+    response = await fetch(url, {
+      signal,
+      headers: { Accept: 'application/json', ...(options.headers ?? {}) }
+    })
   } catch (error) {
     throw makeError('E_NETWORK', toDetail(error))
   }
@@ -111,6 +123,6 @@ export async function fetchJson<T>(
     throw makeError('E_SOURCE_DOWN', `invalid json: ${toDetail(error)}`)
   }
 
-  writeCache(url, data, options.cacheDir)
+  writeCache(cacheKey, data, options.cacheDir)
   return { data, headers: collectHeaders(response.headers) }
 }

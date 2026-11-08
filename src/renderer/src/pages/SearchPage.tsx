@@ -27,10 +27,8 @@ interface MenuState {
 export default function SearchPage({ onOpenDetail }: Props) {
   const keyword = useAppStore((state) => state.keyword)
   const type = useAppStore((state) => state.type)
-  const page = useAppStore((state) => state.page)
   const status = useAppStore((state) => state.status)
-  const items = useAppStore((state) => state.items)
-  const result = useAppStore((state) => state.result)
+  const groups = useAppStore((state) => state.groups)
   const error = useAppStore((state) => state.error)
   const sources = useAppStore((state) => state.sources)
   const sourcesLoaded = useAppStore((state) => state.sourcesLoaded)
@@ -38,6 +36,7 @@ export default function SearchPage({ onOpenDetail }: Props) {
   const setType = useAppStore((state) => state.setType)
   const setSettingsOpen = useAppStore((state) => state.setSettingsOpen)
   const runSearch = useAppStore((state) => state.runSearch)
+  const loadGroupPage = useAppStore((state) => state.loadGroupPage)
   const recent = useAppStore((state) => state.recent)
   const recentLoaded = useAppStore((state) => state.recentLoaded)
   const loadRecent = useAppStore((state) => state.loadRecent)
@@ -62,9 +61,11 @@ export default function SearchPage({ onOpenDetail }: Props) {
     return () => window.clearTimeout(timer)
   }, [toast])
 
-  const pixabay = sources.find((source) => source.id === 'pixabay')
-  const needsKey = Boolean(pixabay && pixabay.requiresApiKey && !pixabay.hasApiKey)
-  const sourceDisabled = Boolean(pixabay && !pixabay.enabled)
+  const enabledSources = sources.filter((source) => source.enabled)
+  const readySources = enabledSources.filter((source) => source.ready)
+  // 多源之后不能再只看 Pixabay：只要有一个启用源就绪，就应该允许搜索
+  const needsKey = sourcesLoaded && enabledSources.length > 0 && readySources.length === 0
+  const sourceDisabled = sourcesLoaded && enabledSources.length === 0
   const searchDisabled = status === 'loading' || keyword.trim().length === 0 || needsKey
 
   const copySource = async (item: SearchResultItem): Promise<void> => {
@@ -152,8 +153,10 @@ export default function SearchPage({ onOpenDetail }: Props) {
       {sourcesLoaded && needsKey ? (
         <section className="notice" aria-label="未配置 API Key">
           <div>
-            <p className="notice__title">还没有配置 Pixabay API Key</p>
-            <p className="notice__text">填入 Key 后即可搜索。Key 只保存在本机，不会上传。</p>
+            <p className="notice__title">启用的素材源还不能用</p>
+            <p className="notice__text">
+              这些来源都需要 API Key。填入 Key 后即可搜索，Key 只保存在本机。
+            </p>
           </div>
           <button type="button" className="btn btn--primary" onClick={() => setSettingsOpen(true)}>
             填写 Key
@@ -164,7 +167,7 @@ export default function SearchPage({ onOpenDetail }: Props) {
       {sourcesLoaded && sourceDisabled ? (
         <section className="notice" aria-label="素材源已停用">
           <div>
-            <p className="notice__title">Pixabay 已被停用</p>
+            <p className="notice__title">没有启用的素材源</p>
             <p className="notice__text">至少启用一个来源才能搜索。</p>
           </div>
           <button type="button" className="btn" onClick={() => setSettingsOpen(true)}>
@@ -177,7 +180,7 @@ export default function SearchPage({ onOpenDetail }: Props) {
         className="searchbar"
         onSubmit={(event) => {
           event.preventDefault()
-          void runSearch(1)
+          void runSearch()
         }}
       >
         <input
@@ -239,15 +242,6 @@ export default function SearchPage({ onOpenDetail }: Props) {
       ) : null}
 
       <div className="result-head">
-        {status === 'ready' && result ? (
-          <p className="result-meta">
-            <span>共 {result.totalHits.toLocaleString('zh-CN')} 条结果</span>
-            <span>第 {result.page} 页</span>
-            {result.rateLimitRemaining !== null ? (
-              <span>本分钟额度剩余 {result.rateLimitRemaining} 次</span>
-            ) : null}
-          </p>
-        ) : null}
         {status === 'loading' ? <p className="status">正在搜索…</p> : null}
       </div>
 
@@ -265,29 +259,94 @@ export default function SearchPage({ onOpenDetail }: Props) {
         </div>
       ) : null}
 
-      {status === 'ready' ? (
-        <div className="grid">
-          {items.map((item) => (
-            <AssetCard
-              key={item.id}
-              item={item}
-              onPreview={setPreview}
-              onOpen={onOpenDetail}
-              onMenu={(target, point) => setMenu({ item: target, ...point })}
-              selected={selectedIds.includes(item.id)}
-              onToggleSelect={toggleSelect}
-              onDownload={(target) => void enqueue([target.id])}
-              favorited={favoriteIds.includes(item.id)}
-              onToggleFavorite={(target) => void handleToggleFavorite(target)}
-            />
-          ))}
-        </div>
-      ) : null}
+      {status === 'ready'
+        ? groups.map((group) => (
+            <section
+              key={group.sourceId}
+              className="source-group"
+              aria-label={`${group.sourceName} 结果`}
+            >
+              <div className="source-group__head">
+                <h2>{group.sourceName}</h2>
+                {group.error ? (
+                  <span className="source-group__error">{group.error.message}</span>
+                ) : (
+                  <span className="source-group__meta">
+                    共 {group.totalHits.toLocaleString('zh-CN')} 条 · 第 {group.page} 页
+                    {group.rateLimitRemaining !== null
+                      ? ` · 本分钟额度剩余 ${group.rateLimitRemaining} 次`
+                      : ''}
+                  </span>
+                )}
+              </div>
+
+              {group.error ? (
+                <button
+                  type="button"
+                  className="btn btn--small"
+                  onClick={() => void loadGroupPage(group.sourceId, 1)}
+                >
+                  重试该来源
+                </button>
+              ) : group.items.length === 0 ? (
+                <p className="muted">该来源没有找到结果。</p>
+              ) : (
+                <>
+                  <div className="grid">
+                    {group.items.map((item) => (
+                      <AssetCard
+                        key={item.id}
+                        item={item}
+                        onPreview={setPreview}
+                        onOpen={onOpenDetail}
+                        onMenu={(target, point) => setMenu({ item: target, ...point })}
+                        selected={selectedIds.includes(item.id)}
+                        onToggleSelect={toggleSelect}
+                        onDownload={(target) => void enqueue([target.id])}
+                        favorited={favoriteIds.includes(item.id)}
+                        onToggleFavorite={(target) => void handleToggleFavorite(target)}
+                      />
+                    ))}
+                  </div>
+                  <nav className="pager" aria-label={`${group.sourceName} 分页`}>
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={group.page <= 1}
+                      onClick={() => void loadGroupPage(group.sourceId, group.page - 1)}
+                    >
+                      上一页
+                    </button>
+                    <span>第 {group.page} 页</span>
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={!group.hasNext}
+                      onClick={() => void loadGroupPage(group.sourceId, group.page + 1)}
+                    >
+                      下一页
+                    </button>
+                  </nav>
+                </>
+              )}
+
+              {group.sourceNotice ? (
+                <p className="source-group__notice">
+                  <a href={group.sourceNotice.url} target="_blank" rel="noreferrer">
+                    {group.sourceNotice.text}
+                  </a>
+                </p>
+              ) : null}
+            </section>
+          ))
+        : null}
 
       {status === 'empty' ? (
         <section className="state">
           <p className="state__title">没有找到相关素材</p>
-          <p className="state__text">换个关键词，或检查拼写后重试。</p>
+          <p className="state__text">
+            换个关键词，或检查拼写后重试；也可以在「设置」里启用更多素材源。
+          </p>
         </section>
       ) : null}
 
@@ -300,32 +359,10 @@ export default function SearchPage({ onOpenDetail }: Props) {
               <code>{error.detail}</code>
             </details>
           ) : null}
-          <button type="button" className="btn" onClick={() => void runSearch(page)}>
+          <button type="button" className="btn" onClick={() => void runSearch()}>
             重试
           </button>
         </section>
-      ) : null}
-
-      {status === 'ready' && result ? (
-        <nav className="pager" aria-label="分页">
-          <button
-            type="button"
-            className="btn"
-            disabled={result.page <= 1}
-            onClick={() => void runSearch(result.page - 1)}
-          >
-            上一页
-          </button>
-          <span>第 {result.page} 页</span>
-          <button
-            type="button"
-            className="btn"
-            disabled={!result.hasNext}
-            onClick={() => void runSearch(result.page + 1)}
-          >
-            下一页
-          </button>
-        </nav>
       ) : null}
 
       {status === 'idle' ? (
@@ -354,18 +391,10 @@ export default function SearchPage({ onOpenDetail }: Props) {
           <section className="state">
             <p className="state__title">输入关键词开始搜索</p>
             <p className="state__text">
-              {recentLoaded ? '当前支持 Pixabay 的图片与视频，单页 20 条。' : '正在读取本地记录…'}
+              {recentLoaded ? '当前已启用 ' + enabledSources.map((s) => s.name).join('、') + '，单页 20 条。' : '正在读取本地记录…'}
             </p>
           </section>
         )
-      ) : null}
-
-      {result?.sourceNotice ? (
-        <p className="powered">
-          <a href={result.sourceNotice.url} target="_blank" rel="noreferrer">
-            {result.sourceNotice.text}
-          </a>
-        </p>
       ) : null}
 
       {menu ? (

@@ -2,6 +2,9 @@
 export const CHANNELS = {
   sourceList: 'source:list',
   searchRun: 'search:run',
+  searchRunGrouped: 'search:runGrouped',
+  // 分组翻页只请求指定源，避免为了翻一组把所有源都重新请求一遍
+  searchRunSource: 'search:runSource',
   assetDetail: 'asset:detail',
   // V0.1 验收第 9 条要求「关软件重开能重新打开同一条素材详情」，靠这个通道读回本地已落库的记录
   assetRecent: 'asset:recent',
@@ -56,6 +59,7 @@ export const CHANNELS = {
 export const READABLE_SETTINGS = [
   'source.enabled',
   'source.apiKey.pixabay',
+  'source.apiKey.pexels',
   'app.keyStorage',
   'download.dir',
   'download.concurrency',
@@ -65,6 +69,7 @@ export const READABLE_SETTINGS = [
 export const WRITABLE_SETTINGS = [
   'source.enabled',
   'source.apiKey.pixabay',
+  'source.apiKey.pexels',
   'download.dir',
   'download.concurrency'
 ] as const

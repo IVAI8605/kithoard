@@ -28,7 +28,7 @@ export default function SettingsDialog({ onClose }: Props) {
 
   const submitKey = async (value: string): Promise<void> => {
     setBusy(true)
-    const error = await saveApiKey(value)
+    const error = await saveApiKey('pixabay', value)
     setBusy(false)
     if (error) {
       setFeedback(error.message)
