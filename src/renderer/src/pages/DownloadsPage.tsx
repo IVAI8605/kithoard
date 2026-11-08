@@ -59,6 +59,10 @@ export default function DownloadsPage({ onOpenDetail }: Props) {
     (task) => !isFinished(task.state) && (task.state !== 'quarantined' || !quarantinedIds.has(task.id))
   )
   const finished = downloads.filter((task) => isFinished(task.state))
+  // §7.8-3：隔离区里超过 30 天未处理的条数，在标题旁提醒一次，不弹窗打扰
+  const staleQuarantineCount = quarantineItems.filter(
+    (item) => Date.now() - item.createdAt > 30 * 24 * 60 * 60 * 1000
+  ).length
   const pendingQueued = downloads.filter((task) => task.state === 'queued').length
   const failedCount = downloads.filter((task) => task.state === 'failed').length
   const completedCount = downloads.filter((task) => task.state === 'completed').length
@@ -260,7 +264,12 @@ export default function DownloadsPage({ onOpenDetail }: Props) {
         <section className="dl-section">
           <div className="dl-section__head">
             <h2>隔离区</h2>
-            <p className="dl-section__note">判定有风险的文件只移到这里，不会自动删除。</p>
+            <p className="dl-section__note">
+              判定有风险的文件只移到这里，不会自动删除。
+              {staleQuarantineCount > 0
+                ? ` 其中 ${staleQuarantineCount} 个已超过 30 天，建议尽快恢复或放弃。`
+                : ''}
+            </p>
           </div>
           <ul className="dl-list">
             {quarantineItems.map((item) => (
