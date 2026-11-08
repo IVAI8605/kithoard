@@ -1,5 +1,6 @@
 import type {
   AssetDetail,
+  AssetType,
   DownloadProgressEvent,
   DownloadStateEvent,
   DownloadTask,
@@ -9,6 +10,7 @@ import type {
   LocalFileQuery,
   QuarantineItem,
   RecoveryReport,
+  FavoritePage,
   SearchPageResult,
   SearchQuery,
   SearchResultItem,
@@ -83,6 +85,15 @@ export interface KithoardApi {
     trash: (ids: number[]) => Promise<ApiResult<{ ok: true; failed: number[] }>>
     /** 用户在系统对话框里取消时返回 null，界面不应把它当成错误 */
     pickDir: () => Promise<ApiResult<{ path: string | null }>>
+  }
+  /** V0.3 收藏夹：收藏/取消、批量收藏、批量取消、分页列表 */
+  favorite: {
+    toggle: (assetId: number) => Promise<ApiResult<{ ok: true; favorited: boolean }>>
+    add: (assetIds: number[]) => Promise<ApiResult<{ ok: true; added: number }>>
+    remove: (assetIds: number[]) => Promise<ApiResult<{ ok: true; removed: number }>>
+    list: (query?: { type?: AssetType; keyword?: string; page?: number; pageSize?: number }) => Promise<ApiResult<FavoritePage>>
+    /** 全部已收藏的素材 id，用于卡片与详情页的状态联动 */
+    ids: () => Promise<ApiResult<number[]>>
   }
 }
 

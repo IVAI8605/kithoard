@@ -39,7 +39,14 @@ export const CHANNELS = {
   libraryMove: 'library:move',
   libraryTrash: 'library:trash',
   // 选目录必须走主进程 dialog，渲染层拿不到真实绝对路径
-  libraryPickDir: 'library:pickDir'
+  libraryPickDir: 'library:pickDir',
+  // V0.3 收藏夹：收藏/取消、批量收藏、批量取消、分页列表
+  favoriteToggle: 'favorite:toggle',
+  favoriteAdd: 'favorite:add',
+  favoriteRemove: 'favorite:remove',
+  favoriteList: 'favorite:list',
+  // 卡片与详情页需要知道「这条是否已收藏」，单独返回 id 集合，避免为每张卡片查一次
+  favoriteIds: 'favorite:ids'
 } as const
 
 /** 渲染层可读的设置键白名单；不在表内的键一律拒绝 */

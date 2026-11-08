@@ -37,8 +37,15 @@ interface AppState {
   quarantineItems: QuarantineItem[]
   quarantineLoaded: boolean
   recovery: RecoveryReport | null
+  /** V0.3 收藏：id 集合用于卡片/详情联动，列表数据由收藏页自己维护 */
+  favoriteIds: number[]
+  favoriteLoaded: boolean
   loadSources: () => Promise<void>
   loadRecent: () => Promise<void>
+  loadFavoriteIds: () => Promise<void>
+  toggleFavorite: (assetId: number) => Promise<AppError | null>
+  addFavorites: (assetIds: number[]) => Promise<AppError | null>
+  removeFavorites: (assetIds: number[]) => Promise<AppError | null>
   setKeyword: (value: string) => void
   setType: (value: SearchableType) => void
   setSettingsOpen: (open: boolean) => void
@@ -81,6 +88,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   quarantineItems: [],
   quarantineLoaded: false,
   recovery: null,
+  favoriteIds: [],
+  favoriteLoaded: false,
 
   loadSources: async () => {
     const [sourceResult, storageResult] = await Promise.all([
@@ -150,6 +159,33 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setRecovery: (report) => set({ recovery: report }),
+
+  loadFavoriteIds: async () => {
+    const result = await window.api.favorite.ids()
+    set({ favoriteLoaded: true, favoriteIds: result.ok ? result.data : [] })
+  },
+
+  // 收藏状态先以主进程返回为准，再刷新 id 集合，避免界面出现「点了没反应」
+  toggleFavorite: async (assetId) => {
+    const result = await window.api.favorite.toggle(assetId)
+    if (!result.ok) return result.error
+    await get().loadFavoriteIds()
+    return null
+  },
+
+  addFavorites: async (assetIds) => {
+    const result = await window.api.favorite.add(assetIds)
+    if (!result.ok) return result.error
+    await get().loadFavoriteIds()
+    return null
+  },
+
+  removeFavorites: async (assetIds) => {
+    const result = await window.api.favorite.remove(assetIds)
+    if (!result.ok) return result.error
+    await get().loadFavoriteIds()
+    return null
+  },
 
   // 队列状态只从主进程读：渲染层不做乐观更新，避免界面显示「已暂停」但库里还在下载
   loadDownloads: async () => {

@@ -10,6 +10,7 @@ import type { SourceRegistry } from '../sources/registry'
 import { createClipboardService } from '../services/clipboard'
 import { createDetailService } from '../services/detail'
 import { createDownloadService } from '../services/download'
+import { createFavoriteService } from '../services/favorite'
 import { createLibraryService } from '../services/library'
 import { createQuarantineService } from '../services/quarantine'
 import { runStartupRecovery } from '../services/recovery'
@@ -65,6 +66,7 @@ export function registerIpc(deps: { userDataDir: string }): { shutdown: () => vo
   const download = createDownloadService({ engine, notify: emit })
   const quarantine = createQuarantineService({ notify: emit })
   const library = createLibraryService()
+  const favorite = createFavoriteService()
 
   // 启动即对齐磁盘（§5.4）：窗口还没建，事件无人接收也没关系，界面随后 list() 拿到的就是校正后的状态
   const recovery = runStartupRecovery()
@@ -184,6 +186,26 @@ export function registerIpc(deps: { userDataDir: string }): { shutdown: () => vo
   ipcMain.handle(
     CHANNELS.libraryPickDir,
     wrap(() => library.pickDir())
+  )
+  ipcMain.handle(
+    CHANNELS.favoriteToggle,
+    wrap((arg) => favorite.toggle(arg))
+  )
+  ipcMain.handle(
+    CHANNELS.favoriteAdd,
+    wrap((arg) => favorite.add(arg))
+  )
+  ipcMain.handle(
+    CHANNELS.favoriteRemove,
+    wrap((arg) => favorite.remove(arg))
+  )
+  ipcMain.handle(
+    CHANNELS.favoriteList,
+    wrap((arg) => favorite.list(arg ?? {}))
+  )
+  ipcMain.handle(
+    CHANNELS.favoriteIds,
+    wrap(() => favorite.ids())
   )
 
   return { shutdown: () => engine.shutdown() }

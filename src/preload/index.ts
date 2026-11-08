@@ -54,6 +54,13 @@ const api: KithoardApi = {
     move: (ids, targetDir) => ipcRenderer.invoke(CHANNELS.libraryMove, { ids, targetDir }),
     trash: (ids) => ipcRenderer.invoke(CHANNELS.libraryTrash, { ids }),
     pickDir: () => ipcRenderer.invoke(CHANNELS.libraryPickDir)
+  },
+  favorite: {
+    toggle: (assetId) => ipcRenderer.invoke(CHANNELS.favoriteToggle, { assetId }),
+    add: (assetIds) => ipcRenderer.invoke(CHANNELS.favoriteAdd, { assetIds }),
+    remove: (assetIds) => ipcRenderer.invoke(CHANNELS.favoriteRemove, { assetIds }),
+    list: (query) => ipcRenderer.invoke(CHANNELS.favoriteList, query ?? {}),
+    ids: () => ipcRenderer.invoke(CHANNELS.favoriteIds)
   }
 }
 

@@ -10,16 +10,22 @@ import {
   thumbSrc,
   typeLabel
 } from '../format'
+import { useAppStore } from '../store'
 
 interface Props {
   assetId: number
   onBack: () => void
+  /** 从哪个页面进来就返回哪里，按钮文案跟着变，避免总是写「返回搜索」 */
+  backLabel?: string
 }
 
-export default function DetailView({ assetId, onBack }: Props) {
+export default function DetailView({ assetId, onBack, backLabel = '返回搜索' }: Props) {
   const [detail, setDetail] = useState<AssetDetail | null>(null)
   const [error, setError] = useState<AppError | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const favoriteIds = useAppStore((state) => state.favoriteIds)
+  const toggleFavorite = useAppStore((state) => state.toggleFavorite)
+  const downloadAssets = useAppStore((state) => state.downloadAssets)
 
   useEffect(() => {
     let cancelled = false
@@ -47,13 +53,24 @@ export default function DetailView({ assetId, onBack }: Props) {
     setToast(response.ok ? '来源链接已复制' : response.error.message)
   }
 
+  const handleDownload = async (): Promise<void> => {
+    const error = await downloadAssets([assetId])
+    setToast(error ? error.message : '已加入下载队列')
+  }
+
+  const handleFavorite = async (): Promise<void> => {
+    const wasFavorited = favoriteIds.includes(assetId)
+    const error = await toggleFavorite(assetId)
+    setToast(error ? error.message : wasFavorited ? '已取消收藏' : '已收藏')
+  }
+
   const src = thumbSrc(detail?.thumbName ?? null)
   const licenseFree = detail?.license === 'free'
 
   return (
     <div className="page detail-page">
       <button type="button" className="backlink" onClick={onBack}>
-        返回搜索
+        {backLabel}
       </button>
 
       {!detail && !error ? <p className="status">正在打开详情…</p> : null}
@@ -116,13 +133,19 @@ export default function DetailView({ assetId, onBack }: Props) {
               <button
                 type="button"
                 className="btn btn--primary"
-                disabled
-                title={licenseFree ? 'V0.2 提供' : '授权状态不支持下载'}
+                disabled={!licenseFree}
+                title={licenseFree ? '加入下载队列' : '授权状态不支持下载'}
+                onClick={() => void handleDownload()}
               >
-                {licenseFree ? '下载（V0.2 提供）' : '授权不支持下载'}
+                {licenseFree ? '下载' : '授权不支持下载'}
               </button>
-              <button type="button" className="btn" disabled title="V0.3 提供">
-                收藏（V0.3 提供）
+              <button
+                type="button"
+                className={favoriteIds.includes(assetId) ? 'btn btn--active' : 'btn'}
+                onClick={() => void handleFavorite()}
+                aria-pressed={favoriteIds.includes(assetId)}
+              >
+                {favoriteIds.includes(assetId) ? '已收藏' : '收藏'}
               </button>
               <button
                 type="button"
@@ -141,7 +164,7 @@ export default function DetailView({ assetId, onBack }: Props) {
 
             <p className="detail__note">
               {licenseFree
-                ? 'V0.1 只做搜索与详情，下载与收藏会在后续版本上线。'
+                ? '下载会加入队列，可在「下载管理」查看进度；收藏后可在「收藏夹」找回。'
                 : `当前授权状态为「${licenseLabel(detail.license)}」，已禁用下载。`}
             </p>
 

@@ -9,12 +9,12 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'search', label: '首页搜索', available: true, note: '' },
   { id: 'downloads', label: '下载管理', available: true, note: '' },
   { id: 'library', label: '本地素材', available: true, note: '' },
-  { id: 'favorites', label: '收藏夹', available: false, note: 'V0.3 提供' },
+  { id: 'favorites', label: '收藏夹', available: true, note: '' },
   { id: 'sites', label: '网站导航', available: false, note: 'V0.6 提供' },
   { id: 'settings', label: '设置', available: false, note: '从首页引导填写 Key' }
 ]
 
-type NavKey = 'search' | 'downloads' | 'library'
+type NavKey = 'search' | 'downloads' | 'library' | 'favorites'
 
 interface Props {
   current: NavKey
@@ -46,8 +46,14 @@ export default function Sidebar({ current, onNavigate }: Props) {
               aria-current={active ? 'page' : undefined}
               title={item.note || item.label}
               onClick={() => {
-                // 已开放的三个页面可跳转；其余项的 available=false 已在按钮上禁用
-                if (item.available && (item.id === 'search' || item.id === 'downloads' || item.id === 'library')) {
+                // 已开放的四个页面可跳转；其余项由 available=false 在按钮上禁用
+                if (
+                  item.available &&
+                  (item.id === 'search' ||
+                    item.id === 'downloads' ||
+                    item.id === 'library' ||
+                    item.id === 'favorites')
+                ) {
                   onNavigate(item.id)
                 }
               }}
@@ -61,7 +67,7 @@ export default function Sidebar({ current, onNavigate }: Props) {
 
       <div className="rail__foot">
         <p>本地素材中转站</p>
-        <p className="rail__version">V0.2</p>
+        <p className="rail__version">V0.3</p>
       </div>
     </aside>
   )

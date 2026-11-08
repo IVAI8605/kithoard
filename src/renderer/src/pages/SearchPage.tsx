@@ -42,6 +42,9 @@ export default function SearchPage({ onOpenDetail }: Props) {
   const recentLoaded = useAppStore((state) => state.recentLoaded)
   const loadRecent = useAppStore((state) => state.loadRecent)
   const downloadAssets = useAppStore((state) => state.downloadAssets)
+  const favoriteIds = useAppStore((state) => state.favoriteIds)
+  const toggleFavorite = useAppStore((state) => state.toggleFavorite)
+  const addFavorites = useAppStore((state) => state.addFavorites)
 
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [preview, setPreview] = useState<SearchResultItem | null>(null)
@@ -105,6 +108,23 @@ export default function SearchPage({ onOpenDetail }: Props) {
       return
     }
     setToast(error.message)
+  }
+
+  const handleToggleFavorite = async (item: SearchResultItem): Promise<void> => {
+    const wasFavorited = favoriteIds.includes(item.id)
+    const error = await toggleFavorite(item.id)
+    setToast(error ? error.message : wasFavorited ? '已取消收藏' : '已收藏')
+  }
+
+  const handleBatchFavorite = async (): Promise<void> => {
+    if (selectedIds.length === 0) return
+    const error = await addFavorites(selectedIds)
+    if (error) {
+      setToast(error.message)
+      return
+    }
+    setToast(`已收藏 ${selectedIds.length} 个素材`)
+    setSelectedIds([])
   }
 
   const handleBatchDownload = async (): Promise<void> => {
@@ -202,6 +222,13 @@ export default function SearchPage({ onOpenDetail }: Props) {
             </button>
             <button
               type="button"
+              className="btn btn--small"
+              onClick={() => void handleBatchFavorite()}
+            >
+              收藏所选
+            </button>
+            <button
+              type="button"
               className="btn btn--small btn--primary"
               onClick={() => void handleBatchDownload()}
             >
@@ -250,6 +277,8 @@ export default function SearchPage({ onOpenDetail }: Props) {
               selected={selectedIds.includes(item.id)}
               onToggleSelect={toggleSelect}
               onDownload={(target) => void enqueue([target.id])}
+              favorited={favoriteIds.includes(item.id)}
+              onToggleFavorite={(target) => void handleToggleFavorite(target)}
             />
           ))}
         </div>

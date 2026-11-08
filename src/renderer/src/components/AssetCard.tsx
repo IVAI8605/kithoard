@@ -15,6 +15,9 @@ interface Props {
   selected?: boolean
   onToggleSelect?: (item: SearchResultItem) => void
   onDownload?: (item: SearchResultItem) => void
+  /** 收藏状态由页面统一维护，卡片只负责显示与回调 */
+  favorited?: boolean
+  onToggleFavorite?: (item: SearchResultItem) => void
 }
 
 export default function AssetCard({
@@ -24,7 +27,9 @@ export default function AssetCard({
   onMenu,
   selected = false,
   onToggleSelect,
-  onDownload
+  onDownload,
+  favorited = false,
+  onToggleFavorite
 }: Props) {
   const src = thumbSrc(item.thumbName)
 
@@ -72,6 +77,17 @@ export default function AssetCard({
             {typeLabel(item.type)}来自 {item.sourceName}
           </button>
           <span className="card__actions">
+            {onToggleFavorite ? (
+              <button
+                type="button"
+                className={favorited ? 'card__favorite card__favorite--on' : 'card__favorite'}
+                onClick={() => onToggleFavorite(item)}
+                aria-label={favorited ? `取消收藏 ${item.title}` : `收藏 ${item.title}`}
+                aria-pressed={favorited}
+              >
+                {favorited ? '已收藏' : '收藏'}
+              </button>
+            ) : null}
             {onDownload ? (
               <button
                 type="button"

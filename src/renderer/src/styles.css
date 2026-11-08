@@ -1045,6 +1045,30 @@ input {
   color: var(--accent-hover);
 }
 
+/* 收藏按钮：未收藏用弱化色，已收藏用强调色，卡片上不抢下载按钮的视觉优先级 */
+.card__favorite {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.card__favorite:hover {
+  color: var(--text);
+}
+
+.card__favorite--on {
+  color: var(--accent);
+}
+
+/* 详情页收藏按钮的「已收藏」状态，与普通按钮区分 */
+.btn--active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .bulkbar {
   display: flex;
   align-items: center;

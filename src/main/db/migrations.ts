@@ -103,6 +103,21 @@ CREATE TABLE quarantine (
 CREATE INDEX idx_quarantine_created ON quarantine(created_at);
 `
 
+/**
+ * V0.3 安全批次：收藏夹需要独立记录「用户收藏了哪条素材」，与下载/本地素材解耦。
+ * 收藏只记录素材 id，素材被清空后收藏记录保留但标题为 null，避免丢失用户的收藏意图。
+ */
+const SCHEMA_V4 = `
+CREATE TABLE favorites (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  asset_id INTEGER NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL,
+  UNIQUE (asset_id)
+);
+
+CREATE INDEX idx_favorites_created ON favorites(created_at);
+`
+
 export const MIGRATIONS: Migration[] = [
   {
     version: 1,
@@ -120,6 +135,12 @@ export const MIGRATIONS: Migration[] = [
     version: 3,
     up: (db) => {
       db.exec(SCHEMA_V3)
+    }
+  },
+  {
+    version: 4,
+    up: (db) => {
+      db.exec(SCHEMA_V4)
     }
   }
 ]

@@ -4,13 +4,25 @@ import SettingsDialog from './components/SettingsDialog'
 import StartupRecoveryDialog from './components/StartupRecoveryDialog'
 import DetailView from './pages/DetailView'
 import DownloadsPage from './pages/DownloadsPage'
+import FavoritesPage from './pages/FavoritesPage'
 import LibraryPage from './pages/LibraryPage'
 import SearchPage from './pages/SearchPage'
 import { useAppStore } from './store'
 
-type NavKey = 'search' | 'downloads' | 'library'
+type NavKey = 'search' | 'downloads' | 'library' | 'favorites'
 /** 详情页记住从哪来的，返回时不会把用户莫名送回首页 */
 type View = { name: NavKey } | { name: 'detail'; assetId: number; from: NavKey }
+
+const BACK_LABELS: Record<NavKey, string> = {
+  search: '返回搜索',
+  downloads: '返回下载管理',
+  library: '返回本地素材',
+  favorites: '返回收藏夹'
+}
+
+function backLabelOf(from: NavKey): string {
+  return BACK_LABELS[from]
+}
 
 export default function App() {
   const loadSources = useAppStore((state) => state.loadSources)
@@ -19,13 +31,16 @@ export default function App() {
   const recovery = useAppStore((state) => state.recovery)
   const setRecovery = useAppStore((state) => state.setRecovery)
   const loadDownloads = useAppStore((state) => state.loadDownloads)
+  const loadFavoriteIds = useAppStore((state) => state.loadFavoriteIds)
   const startQueue = useAppStore((state) => state.startQueue)
   const [view, setView] = useState<View>({ name: 'search' })
   const [recoveryOpen, setRecoveryOpen] = useState(false)
 
   useEffect(() => {
     void loadSources()
-  }, [loadSources])
+    // 收藏 id 全局只拉一次，卡片与详情页共用；后续收藏变化由 store 主动刷新
+    void loadFavoriteIds()
+  }, [loadSources, loadFavoriteIds])
 
   // 启动恢复由主进程完成，这里只取报告；有排队任务才询问，避免每次开软件都弹窗
   useEffect(() => {
@@ -72,8 +87,17 @@ export default function App() {
           />
         ) : null}
         {view.name === 'library' ? <LibraryPage /> : null}
+        {view.name === 'favorites' ? (
+          <FavoritesPage
+            onOpenDetail={(assetId) => setView({ name: 'detail', assetId, from: 'favorites' })}
+          />
+        ) : null}
         {view.name === 'detail' ? (
-          <DetailView assetId={view.assetId} onBack={() => setView({ name: view.from })} />
+          <DetailView
+            assetId={view.assetId}
+            onBack={() => setView({ name: view.from })}
+            backLabel={backLabelOf(view.from)}
+          />
         ) : null}
       </main>
       {settingsOpen ? <SettingsDialog onClose={() => setSettingsOpen(false)} /> : null}

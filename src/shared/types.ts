@@ -159,6 +159,25 @@ export interface DownloadEstimate {
   bytes: number | null
 }
 
+/** 收藏夹的一条记录；素材被清空后标题与类型为 null，记录保留 */
+export interface FavoriteItem {
+  id: number
+  assetId: number
+  title: string | null
+  type: AssetType | null
+  sourceId: string | null
+  remoteId: string | null
+  createdAt: number
+}
+
+/** `favorite:list` 分页结果 */
+export interface FavoritePage {
+  items: FavoriteItem[]
+  total: number
+  page: number
+  pageSize: number
+}
+
 /** 本地素材在磁盘上的三种状态；quarantined 只出现在隔离区，本地素材页不展示 */
 export type LocalFileStatus = 'present' | 'missing' | 'quarantined'
 
