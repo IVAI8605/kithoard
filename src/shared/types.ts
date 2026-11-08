@@ -299,3 +299,59 @@ export interface ClearResult {
   downloads: number
   settings: number
 }
+
+/**
+ * V0.4 图片输出格式。
+ * BMP 只支持作为输入：sharp 没有 BMP 编码器，强行列出会让界面出现一个必失败的选项。
+ */
+export type ImageFormat = 'jpeg' | 'png' | 'webp' | 'avif'
+
+export type ImageAction = 'convert' | 'compress' | 'edit'
+
+/** 裁剪坐标以左上角为原点，单位像素；旋转为顺时针角度 */
+export interface ImageEditOptions {
+  crop?: { left: number; top: number; width: number; height: number }
+  rotate?: number
+  flip?: 'horizontal' | 'vertical'
+  resize?: { width?: number; height?: number }
+}
+
+export interface ImageProcessOptions {
+  action: ImageAction
+  /** convert 必填；compress/edit 不填则沿用原格式 */
+  format?: ImageFormat
+  /** 1–100；不填由主进程按格式给默认值 */
+  quality?: number
+  edit?: ImageEditOptions
+}
+
+export type MediaTaskState = 'queued' | 'running' | 'completed' | 'failed'
+
+export interface MediaTaskItem {
+  /** 对应的 local_files.id，界面用它定位是哪一条素材 */
+  fileId: number
+  fileName: string
+  state: MediaTaskState
+  /** 处理后的新路径；压缩覆盖原文件时与原路径相同 */
+  outputPath?: string
+  /** 失败原因给中文可读文案，不塞英文异常 */
+  error?: string
+}
+
+export interface MediaTask {
+  taskId: string
+  action: ImageAction
+  total: number
+  done: number
+  failed: number
+  items: MediaTaskItem[]
+}
+
+/** `media:progress` 每完成一条推送一次，界面据此更新进度与失败列表 */
+export interface MediaProgressEvent {
+  taskId: string
+  done: number
+  total: number
+  failed: number
+  item: MediaTaskItem
+}

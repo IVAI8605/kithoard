@@ -68,7 +68,7 @@ export default function Sidebar({ current, onNavigate }: Props) {
 
       <div className="rail__foot">
         <p>本地素材中转站</p>
-        <p className="rail__version">V0.3</p>
+        <p className="rail__version">V{__APP_VERSION__}</p>
       </div>
     </aside>
   )

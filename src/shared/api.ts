@@ -12,6 +12,9 @@ import type {
   LocalFilePage,
   LocalFileProps,
   LocalFileQuery,
+  MediaProgressEvent,
+  MediaTask,
+  ImageProcessOptions,
   QuarantineItem,
   RecoveryReport,
   FavoritePage,
@@ -113,6 +116,14 @@ export interface KithoardApi {
     list: (query?: { type?: AssetType; keyword?: string; page?: number; pageSize?: number }) => Promise<ApiResult<FavoritePage>>
     /** 全部已收藏的素材 id，用于卡片与详情页的状态联动 */
     ids: () => Promise<ApiResult<number[]>>
+  }
+  /** V0.4 图片处理：转换、压缩、编辑；批量逐条推送进度 */
+  media: {
+    start: (fileIds: number[], options: ImageProcessOptions) => Promise<ApiResult<{ taskId: string }>>
+    cancel: (taskId: string) => Promise<ApiResult<{ ok: true }>>
+    list: () => Promise<ApiResult<MediaTask[]>>
+    /** 返回取消订阅函数；页面卸载时调用 */
+    onProgress: (listener: (event: MediaProgressEvent) => void) => () => void
   }
 }
 

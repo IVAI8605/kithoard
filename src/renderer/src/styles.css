@@ -794,6 +794,74 @@ input {
   font-size: 12.5px;
 }
 
+.dialog__form select {
+  height: 42px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+}
+
+/* 图片编辑参数两列排布，避免长表单把对话框撑得过高 */
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.media-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.media-grid input,
+.media-grid select {
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.media-progress {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.media-progress p {
+  margin: 0 0 6px;
+}
+
+.media-progress__bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.media-progress__bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
+.media-failures {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--danger);
+  font-size: 12.5px;
+}
+
 .dialog__feedback {
   margin: 0;
   color: var(--ok);

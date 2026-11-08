@@ -1,6 +1,6 @@
 {
   "name": "kithoard",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Kithoard 栖材坞 · 本地素材中转站",
   "private": true,
   "license": "UNLICENSED",
@@ -22,6 +22,7 @@
     "better-sqlite3": "13.0.3",
     "react": "19.3.1",
     "react-dom": "19.3.1",
+    "sharp": "^0.34.5",
     "zustand": "5.1.0"
   },
   "devDependencies": {

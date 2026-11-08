@@ -57,7 +57,12 @@ export const CHANNELS = {
   settingsBackup: 'settings:backup',
   settingsRestore: 'settings:restore',
   // V0.3 清空数据：只删库里的收藏/下载历史/设置，不碰本地素材文件
-  settingsClearData: 'settings:clearData'
+  settingsClearData: 'settings:clearData',
+  // V0.4 图片处理：启动/取消/查询任务；逐条进度走事件通道
+  mediaStart: 'media:start',
+  mediaCancel: 'media:cancel',
+  mediaList: 'media:list',
+  mediaProgress: 'media:progress'
 } as const
 
 /** 渲染层可读的设置键白名单；不在表内的键一律拒绝 */

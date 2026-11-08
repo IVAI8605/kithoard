@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { AssetType, LocalFileItem, LocalFileProps } from '@shared/types'
 import FilePropsDialog from '../components/FilePropsDialog'
+import ImageProcessDialog from '../components/ImageProcessDialog'
 import { formatDateTime, formatSize, typeLabel } from '../format'
 
 /** 与主进程默认值一致；一页 50 条足够覆盖常见素材库，翻页成本也低 */
 const PAGE_SIZE = 50
+
+/** 图片处理只接这几种扩展名，与主进程 media service 的白名单一致 */
+const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif', '.bmp'])
+
+function isImageFile(fileName: string): boolean {
+  const index = fileName.lastIndexOf('.')
+  return index > 0 && IMAGE_EXTS.has(fileName.slice(index).toLowerCase())
+}
 
 const TYPE_FILTERS: Array<{ value: AssetType | 'all'; label: string }> = [
   { value: 'all', label: '全部' },
@@ -28,6 +37,8 @@ export default function LibraryPage() {
   /** 重命名用行内输入，避免再弹一层窗口；prompt 在 Electron 里不可用 */
   const [renaming, setRenaming] = useState<{ id: number; value: string } | null>(null)
   const [propsItem, setPropsItem] = useState<LocalFileProps | null>(null)
+  /** 非空时打开图片处理面板；存 id 而不是整条记录，避免处理期间列表刷新后引用过期 */
+  const [mediaTargets, setMediaTargets] = useState<number[] | null>(null)
 
   // 筛选条件作为依赖：改类型或关键词就回第一页，避免停在超出范围的页码上
   const load = useCallback(
@@ -159,6 +170,10 @@ export default function LibraryPage() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const missingCount = items.filter((item) => item.status === 'missing').length
   const filtered = keyword !== '' || type !== 'all'
+  // 批量处理要求整批都是图片；混入视频时按钮置灰，避免主进程整批拒绝
+  const selectedItems = items.filter((item) => selected.includes(item.id))
+  const mediaEligible =
+    selectedItems.length > 0 && selectedItems.every((item) => isImageFile(item.fileName))
 
   return (
     <div className="page">
@@ -245,6 +260,15 @@ export default function LibraryPage() {
               <span>全选本页</span>
             </label>
             <span className="bulk-bar__count">已选 {selected.length} 个</span>
+            <button
+              type="button"
+              className="btn btn--small"
+              disabled={!mediaEligible}
+              title={mediaEligible ? '格式转换、压缩或编辑' : '只支持图片，且选中项必须全部是图片'}
+              onClick={() => setMediaTargets(selected)}
+            >
+              图片处理…
+            </button>
             <button
               type="button"
               className="btn btn--small"
@@ -378,6 +402,15 @@ export default function LibraryPage() {
                     >
                       属性
                     </button>
+                    {!missing && isImageFile(item.fileName) ? (
+                      <button
+                        type="button"
+                        className="btn btn--small"
+                        onClick={() => setMediaTargets([item.id])}
+                      >
+                        处理
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       className="btn btn--small btn--ghost"
@@ -427,6 +460,14 @@ export default function LibraryPage() {
           onReveal={() => {
             void act(() => window.api.library.reveal(propsItem.id), '已在文件夹中定位')
           }}
+        />
+      ) : null}
+
+      {mediaTargets ? (
+        <ImageProcessDialog
+          fileIds={mediaTargets}
+          onClose={() => setMediaTargets(null)}
+          onDone={() => void load(page)}
         />
       ) : null}
 

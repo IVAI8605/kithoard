@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type { KithoardApi } from '@shared/api'
-import type { DownloadProgressEvent, DownloadStateEvent } from '@shared/types'
+import type { DownloadProgressEvent, DownloadStateEvent, MediaProgressEvent } from '@shared/types'
 import { CHANNELS } from '@shared/channels'
 
 // 只暴露白名单方法；渲染层拿不到 ipcRenderer 本身，也就无法自己拼通道
@@ -68,6 +68,12 @@ const api: KithoardApi = {
     remove: (assetIds) => ipcRenderer.invoke(CHANNELS.favoriteRemove, { assetIds }),
     list: (query) => ipcRenderer.invoke(CHANNELS.favoriteList, query ?? {}),
     ids: () => ipcRenderer.invoke(CHANNELS.favoriteIds)
+  },
+  media: {
+    start: (fileIds, options) => ipcRenderer.invoke(CHANNELS.mediaStart, { ids: fileIds, options }),
+    cancel: (taskId) => ipcRenderer.invoke(CHANNELS.mediaCancel, { taskId }),
+    list: () => ipcRenderer.invoke(CHANNELS.mediaList),
+    onProgress: (listener) => subscribe<MediaProgressEvent>(CHANNELS.mediaProgress, listener)
   }
 }
 

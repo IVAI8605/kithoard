@@ -13,9 +13,12 @@ files:
   - package.json
 
 asar: true
-# better-sqlite3 是原生模块，留在 asar 外才能被 Electron 加载
+# 原生模块留在 asar 外才能被 Electron 加载：
+# better-sqlite3 的 prebuildify 二进制、sharp 的 libvips 与 @img 平台包
 asarUnpack:
   - node_modules/better-sqlite3/**/*
+  - node_modules/sharp/**/*
+  - node_modules/@img/**/*
 # better-sqlite3 v13 自带 prebuildify 预编译二进制，无需本机 Visual Studio；
 # 强制 rebuild 反而会因缺少编译环境失败
 npmRebuild: false
