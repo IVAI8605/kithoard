@@ -1,6 +1,8 @@
 import type {
   AssetDetail,
   AssetType,
+  BackupExportResult,
+  BackupImportResult,
   DownloadProgressEvent,
   DownloadStateEvent,
   DownloadTask,
@@ -43,6 +45,10 @@ export interface KithoardApi {
     pickDir: () => Promise<ApiResult<{ path: string | null }>>
     /** 手动清理缓存；返回清理条数与字节数 */
     cleanCache: () => Promise<ApiResult<{ removed: number; bytes: number }>>
+    /** 导出数据备份；用户取消时 path 为 null */
+    exportBackup: () => Promise<ApiResult<BackupExportResult>>
+    /** 导入数据备份；用户取消时 summary 为 null */
+    importBackup: () => Promise<ApiResult<BackupImportResult>>
   }
   clipboard: {
     writeText: (text: string) => Promise<ApiResult<{ ok: true }>>

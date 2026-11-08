@@ -253,3 +253,37 @@ export interface QuarantineItem {
   reason: string
   createdAt: number
 }
+
+/**
+ * 备份导入摘要（§5.7）：只给界面展示条数，不暴露内部 id。
+ * 导入不做「部分成功」——要么整份写入，要么回滚后报错。
+ */
+export interface RestoreSummary {
+  addedAssets: number
+  addedFavorites: number
+  addedDownloads: number
+  addedLocalFiles: number
+  /** 因目标路径已存在而跳过的条数 */
+  existingDownloads: number
+  existingLocalFiles: number
+  /** 本机磁盘上找不到文件的条数；记录标 missing，不阻断导入 */
+  missingPaths: number
+}
+
+/** `settings:backup` 返回：用户取消时 path 为 null，counts 全 0 */
+export interface BackupExportResult {
+  path: string | null
+  bytes: number
+  counts: {
+    assets: number
+    favorites: number
+    downloads: number
+    localFiles: number
+  }
+}
+
+/** `settings:restore` 返回：用户取消时 summary 为 null */
+export interface BackupImportResult {
+  path: string | null
+  summary: RestoreSummary | null
+}

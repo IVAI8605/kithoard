@@ -11,6 +11,10 @@ export default function SettingsPage() {
   const keyStorage = useAppStore((state) => state.keyStorage)
   const saveApiKey = useAppStore((state) => state.saveApiKey)
   const toggleSource = useAppStore((state) => state.toggleSource)
+  const loadSources = useAppStore((state) => state.loadSources)
+  const loadFavoriteIds = useAppStore((state) => state.loadFavoriteIds)
+  const loadDownloads = useAppStore((state) => state.loadDownloads)
+  const loadRecent = useAppStore((state) => state.loadRecent)
 
   const [downloadDir, setDownloadDir] = useState('')
   const [concurrency, setConcurrency] = useState(3)
@@ -95,6 +99,44 @@ export default function SettingsPage() {
     setToast(value ? 'Key 已保存' : 'Key 已清除')
   }
 
+  const exportBackupNow = async (): Promise<void> => {
+    setBusy(true)
+    const result = await window.api.settings.exportBackup()
+    setBusy(false)
+    if (!result.ok) {
+      setToast(result.error.message)
+      return
+    }
+    // 用户取消保存对话框不是失败，静默返回
+    if (!result.data.path) return
+    const { assets, favorites } = result.data.counts
+    setToast(`已导出备份：${assets} 条素材、${favorites} 条收藏（不含素材文件与 Key）`)
+  }
+
+  const importBackupNow = async (): Promise<void> => {
+    const confirmed = window.confirm(
+      '导入会把备份里的素材、收藏与下载记录合并到当前数据，不会删除现有内容。继续吗？'
+    )
+    if (!confirmed) return
+
+    setBusy(true)
+    const result = await window.api.settings.importBackup()
+    setBusy(false)
+    if (!result.ok) {
+      setToast(result.error.message)
+      return
+    }
+    if (!result.data.summary) return
+
+    const summary = result.data.summary
+    setToast(
+      `导入完成：新增素材 ${summary.addedAssets}、收藏 ${summary.addedFavorites}、` +
+        `下载记录 ${summary.addedDownloads}、路径缺失 ${summary.missingPaths}`
+    )
+    // 导入可能改动收藏、下载历史、最近记录与设置，整页数据重拉一次，避免界面停在旧值
+    await Promise.all([load(), loadSources(), loadFavoriteIds(), loadDownloads(), loadRecent()])
+  }
+
   return (
     <div className="page">
       <header className="page__head">
@@ -159,6 +201,37 @@ export default function SettingsPage() {
           >
             立即清理
           </button>
+        </div>
+      </section>
+
+      <section className="settings-block">
+        <h2>备份与恢复</h2>
+        <div className="settings-row">
+          <div>
+            <p className="settings-row__label">数据备份</p>
+            <p className="settings-row__value">
+              备份只含素材信息、收藏、下载记录与偏好设置，不含下载的素材文件，也不含 API Key。
+              换电脑时把备份文件拷过去导入即可，导入不会删除现有数据。
+            </p>
+          </div>
+          <div className="settings-inline">
+            <button
+              type="button"
+              className="btn btn--small"
+              disabled={busy}
+              onClick={() => void exportBackupNow()}
+            >
+              导出…
+            </button>
+            <button
+              type="button"
+              className="btn btn--small"
+              disabled={busy}
+              onClick={() => void importBackupNow()}
+            >
+              导入…
+            </button>
+          </div>
         </div>
       </section>
 

@@ -21,7 +21,9 @@ const api: KithoardApi = {
     get: (key) => ipcRenderer.invoke(CHANNELS.settingsGet, { key }),
     set: (key, value) => ipcRenderer.invoke(CHANNELS.settingsSet, { key, value }),
     pickDir: () => ipcRenderer.invoke(CHANNELS.settingsPickDir),
-    cleanCache: () => ipcRenderer.invoke(CHANNELS.settingsCleanCache)
+    cleanCache: () => ipcRenderer.invoke(CHANNELS.settingsCleanCache),
+    exportBackup: () => ipcRenderer.invoke(CHANNELS.settingsBackup),
+    importBackup: () => ipcRenderer.invoke(CHANNELS.settingsRestore)
   },
   clipboard: {
     writeText: (text) => ipcRenderer.invoke(CHANNELS.copyText, { text })

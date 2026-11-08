@@ -1,9 +1,14 @@
+import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { BrowserWindow, dialog, type OpenDialogOptions } from 'electron'
+import { app, BrowserWindow, dialog, type OpenDialogOptions, type SaveDialogOptions } from 'electron'
 import { READABLE_SETTINGS, WRITABLE_SETTINGS } from '@shared/channels'
 import { makeError } from '@shared/errors'
+import type { BackupImportResult, BackupExportResult } from '@shared/types'
+import { buildBackup, restoreBackup } from '../backup'
+import { parseBackupJson } from '../backup/format'
 import { cacheSize, cleanCache, type CacheCleanResult } from '../cache/clean'
+import { log } from '../log'
 import { assertMovableDir } from '../library/fs-ops'
 import {
   getEnabledSources,
@@ -47,6 +52,10 @@ export interface SettingsService {
   pickDir(): Promise<{ path: string | null }>
   /** 手动清理缓存；自动清理在启动时执行 */
   cleanCache(): CacheCleanResult
+  /** 导出数据备份；用户取消时 path 为 null */
+  exportBackup(): Promise<BackupExportResult>
+  /** 导入数据备份；用户取消时 summary 为 null */
+  importBackup(): Promise<BackupImportResult>
 }
 
 /**
@@ -63,7 +72,9 @@ export function createSettingsService(deps: {
     read(raw) {
       const key = readKey(raw, READABLE_SETTINGS)
       if (key === 'source.enabled') return getEnabledSources()
-      if (key === 'source.apiKey.pixabay') return hasApiKey('pixabay')
+      if (key.startsWith('source.apiKey.')) {
+        return hasApiKey(key.slice('source.apiKey.'.length))
+      }
       if (key === 'download.dir') return currentDownloadDir()
       if (key === 'download.concurrency') return currentConcurrency()
       if (key === 'cache.size') return cacheSize(deps.cacheRoot)
@@ -76,11 +87,11 @@ export function createSettingsService(deps: {
       const key = readKey(record, WRITABLE_SETTINGS)
       const value = record.value
 
-      if (key === 'source.apiKey.pixabay') {
+      if (key.startsWith('source.apiKey.')) {
         if (typeof value !== 'string' || value.length > 200) {
           throw makeError('E_INVALID_ARG', 'value')
         }
-        setApiKey('pixabay', value)
+        setApiKey(key.slice('source.apiKey.'.length), value)
         return { ok: true }
       }
 
@@ -127,6 +138,75 @@ export function createSettingsService(deps: {
 
     cleanCache() {
       return cleanCache(deps.cacheRoot)
+    },
+
+    async exportBackup() {
+      const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+      const options: SaveDialogOptions = {
+        title: '导出数据备份',
+        defaultPath: path.join(app.getPath('desktop'), `kithoard-backup-${dateStamp(new Date())}.json`),
+        filters: [{ name: 'JSON', extensions: ['json'] }]
+      }
+      const result = win
+        ? await dialog.showSaveDialog(win, options)
+        : await dialog.showSaveDialog(options)
+      if (result.canceled || !result.filePath) {
+        return { path: null, bytes: 0, counts: emptyCounts() }
+      }
+
+      // 备份只读库、不打包素材文件；Key 在 buildBackup 的 settings 白名单里已被剔除
+      const backup = buildBackup({ appVersion: app.getVersion() })
+      const text = JSON.stringify(backup, null, 2)
+      fs.writeFileSync(result.filePath, text, 'utf8')
+      log.info(
+        `backup exported assets=${backup.assets.length} favorites=${backup.favorites.length} downloads=${backup.downloads.length}`
+      )
+      return {
+        path: result.filePath,
+        bytes: Buffer.byteLength(text, 'utf8'),
+        counts: {
+          assets: backup.assets.length,
+          favorites: backup.favorites.length,
+          downloads: backup.downloads.length,
+          localFiles: backup.localFiles.length
+        }
+      }
+    },
+
+    async importBackup() {
+      const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+      const options: OpenDialogOptions = {
+        title: '导入数据备份',
+        properties: ['openFile'],
+        filters: [{ name: 'JSON', extensions: ['json'] }]
+      }
+      const result = win
+        ? await dialog.showOpenDialog(win, options)
+        : await dialog.showOpenDialog(options)
+      if (result.canceled || result.filePaths.length === 0) {
+        return { path: null, summary: null }
+      }
+
+      const filePath = result.filePaths[0]
+      // 解析与校验都在写库之前完成；结构不合法时抛 E_RESTORE_INVALID，库不会被改动
+      const backup = parseBackupJson(fs.readFileSync(filePath, 'utf8'))
+      const summary = restoreBackup(backup)
+      // 并发数可能随备份变化，导入后立刻让队列按新值取任务
+      deps.pump()
+      log.info(
+        `backup imported assets=${summary.addedAssets} favorites=${summary.addedFavorites} downloads=${summary.addedDownloads} local=${summary.addedLocalFiles} missing=${summary.missingPaths}`
+      )
+      return { path: filePath, summary }
     }
   }
+}
+
+function emptyCounts(): BackupExportResult['counts'] {
+  return { assets: 0, favorites: 0, downloads: 0, localFiles: 0 }
+}
+
+/** 备份文件名带本地时间，连续导出不会互相覆盖 */
+function dateStamp(now: Date): string {
+  const pad = (value: number): string => String(value).padStart(2, '0')
+  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`
 }

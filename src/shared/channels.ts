@@ -52,7 +52,10 @@ export const CHANNELS = {
   favoriteIds: 'favorite:ids',
   // V0.3 设置页：目录选择、缓存清理；并发与目录读写走 settings:get/set 的白名单
   settingsPickDir: 'settings:pickDir',
-  settingsCleanCache: 'settings:cleanCache'
+  settingsCleanCache: 'settings:cleanCache',
+  // V0.3 备份：导出只含数据不含 Key，导入按 §5.7 算法重建
+  settingsBackup: 'settings:backup',
+  settingsRestore: 'settings:restore'
 } as const
 
 /** 渲染层可读的设置键白名单；不在表内的键一律拒绝 */

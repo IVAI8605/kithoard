@@ -124,6 +124,14 @@ export function registerIpc(deps: { userDataDir: string }): { shutdown: () => vo
     wrap(() => settings.cleanCache())
   )
   ipcMain.handle(
+    CHANNELS.settingsBackup,
+    wrap(() => settings.exportBackup())
+  )
+  ipcMain.handle(
+    CHANNELS.settingsRestore,
+    wrap(() => settings.importBackup())
+  )
+  ipcMain.handle(
     CHANNELS.copyText,
     wrap((arg) => clipboard.writeExternalLink(arg))
   )
