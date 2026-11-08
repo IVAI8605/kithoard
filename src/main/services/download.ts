@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { CHANNELS } from '@shared/channels'
+import { CHANNELS, MAX_ENQUEUE_ASSETS } from '@shared/channels'
 import { makeError } from '@shared/errors'
 import type { AssetType, DownloadEstimate, DownloadState, DownloadTask } from '@shared/types'
 import { getDb } from '../db'
@@ -13,8 +13,8 @@ import { nextState } from '../download/task'
 import { checkDownloadUrl, needsLargeFileConfirm } from '../safety/policy'
 import { getPlainSetting } from '../settings'
 
-/** §6.3 规定所有 id 数组长度 ≤ 200 */
-const MAX_TASKS_PER_ENQUEUE = 200
+/** §6.3 规定队列类操作 id 数组长度 ≤ 200；批量入队另有 20 条上限（§7.4-8） */
+const MAX_TASKS_PER_ACTION = 200
 /** 任务 ID 是本应用生成的 UUID，超长输入直接判非法，不拿它去查库 */
 const TASK_ID_MAX = 64
 /** §5.3：失败重试超过 3 次需人工确认，避免坏链接无限重试 */
@@ -252,7 +252,8 @@ function asRecord(raw: unknown): Record<string, unknown> {
 
 function readAssetIds(raw: unknown): number[] {
   const value = asRecord(raw).assetIds
-  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_TASKS_PER_ENQUEUE) {
+  // 入队与预估共用一个上限：预估超限也应拒绝，否则确认框会显示一个下不了的批量
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_ENQUEUE_ASSETS) {
     throw makeError('E_INVALID_ARG', 'assetIds')
   }
   if (!value.every((id) => typeof id === 'number' && Number.isInteger(id) && id > 0)) {
@@ -264,7 +265,7 @@ function readAssetIds(raw: unknown): number[] {
 
 function readOrderedIds(raw: unknown): string[] {
   const value = asRecord(raw).orderedIds
-  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_TASKS_PER_ENQUEUE) {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_TASKS_PER_ACTION) {
     throw makeError('E_INVALID_ARG', 'orderedIds')
   }
   if (!value.every((id) => typeof id === 'string' && id.length > 0 && id.length <= TASK_ID_MAX)) {

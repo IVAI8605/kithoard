@@ -46,3 +46,9 @@ export const CHANNELS = {
 export const READABLE_SETTINGS = ['source.enabled', 'source.apiKey.pixabay', 'app.keyStorage'] as const
 
 export const WRITABLE_SETTINGS = ['source.enabled', 'source.apiKey.pixabay'] as const
+
+/**
+ * §7.4-8 / §9.1：单次批量下载上限 20 条（Pixabay 条款约束）。
+ * 放在 shared 是为了主进程校验与界面拦截用同一个数字，不会一边 20 一边 200。
+ */
+export const MAX_ENQUEUE_ASSETS = 20

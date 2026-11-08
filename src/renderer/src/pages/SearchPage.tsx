@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { MAX_ENQUEUE_ASSETS } from '@shared/channels'
 import type { SearchResultItem, SearchableType } from '@shared/types'
 import AssetCard from '../components/AssetCard'
 import ContextMenu from '../components/ContextMenu'
@@ -73,6 +74,11 @@ export default function SearchPage({ onOpenDetail }: Props) {
   }
 
   const toggleSelect = (item: SearchResultItem): void => {
+    // 上限在界面上先挡一次，用户不用点完 21 个才看到主进程报错
+    if (!selectedIds.includes(item.id) && selectedIds.length >= MAX_ENQUEUE_ASSETS) {
+      setToast(`一次最多下载 ${MAX_ENQUEUE_ASSETS} 个素材，请分批处理`)
+      return
+    }
     setSelectedIds((prev) =>
       prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]
     )
@@ -187,7 +193,9 @@ export default function SearchPage({ onOpenDetail }: Props) {
 
       {selectedIds.length > 0 ? (
         <div className="bulkbar" role="region" aria-label="批量操作">
-          <span>已选 {selectedIds.length} 个素材</span>
+          <span>
+            已选 {selectedIds.length} / {MAX_ENQUEUE_ASSETS} 个素材
+          </span>
           <div className="bulkbar__actions">
             <button type="button" className="btn btn--small" onClick={() => setSelectedIds([])}>
               取消选择
