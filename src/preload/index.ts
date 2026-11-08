@@ -47,7 +47,12 @@ const api: KithoardApi = {
     list: (query) => ipcRenderer.invoke(CHANNELS.libraryList, query ?? {}),
     open: (id) => ipcRenderer.invoke(CHANNELS.libraryOpen, { id }),
     reveal: (id) => ipcRenderer.invoke(CHANNELS.libraryReveal, { id }),
-    copyPath: (id) => ipcRenderer.invoke(CHANNELS.libraryCopyPath, { id })
+    copyPath: (id) => ipcRenderer.invoke(CHANNELS.libraryCopyPath, { id }),
+    props: (id) => ipcRenderer.invoke(CHANNELS.libraryProps, { id }),
+    rename: (id, newName) => ipcRenderer.invoke(CHANNELS.libraryRename, { id, newName }),
+    move: (ids, targetDir) => ipcRenderer.invoke(CHANNELS.libraryMove, { ids, targetDir }),
+    trash: (ids) => ipcRenderer.invoke(CHANNELS.libraryTrash, { ids }),
+    pickDir: () => ipcRenderer.invoke(CHANNELS.libraryPickDir)
   }
 }
 

@@ -186,6 +186,16 @@ export interface LocalFilePage {
   pageSize: number
 }
 
+/** 属性面板数据；时间统一 Unix 毫秒，ext 不含点，没有扩展名时为空串 */
+export interface LocalFileProps {
+  id: number
+  path: string
+  size: number
+  ext: string
+  createdAt: number
+  modifiedAt: number
+}
+
 /** 隔离区条目；reason 是给人看的判定原因，不是错误码 */
 export interface QuarantineItem {
   id: number

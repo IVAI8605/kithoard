@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { AssetType, LocalFileItem } from '@shared/types'
+import type { AssetType, LocalFileItem, LocalFileProps } from '@shared/types'
+import FilePropsDialog from '../components/FilePropsDialog'
 import { formatDateTime, formatSize, typeLabel } from '../format'
 
 /** 与主进程默认值一致；一页 50 条足够覆盖常见素材库，翻页成本也低 */
@@ -23,6 +24,10 @@ export default function LibraryPage() {
   const [status, setStatus] = useState<LoadStatus>('loading')
   const [errorText, setErrorText] = useState('')
   const [toast, setToast] = useState<string | null>(null)
+  const [selected, setSelected] = useState<number[]>([])
+  /** 重命名用行内输入，避免再弹一层窗口；prompt 在 Electron 里不可用 */
+  const [renaming, setRenaming] = useState<{ id: number; value: string } | null>(null)
+  const [propsItem, setPropsItem] = useState<LocalFileProps | null>(null)
 
   // 筛选条件作为依赖：改类型或关键词就回第一页，避免停在超出范围的页码上
   const load = useCallback(
@@ -45,6 +50,9 @@ export default function LibraryPage() {
       setTotal(result.data.total)
       setPage(result.data.page)
       setStatus(result.data.items.length === 0 ? 'empty' : 'ready')
+      // 列表已变，跨页保留旧选中只会让批量操作误伤，直接清空
+      setSelected([])
+      setRenaming(null)
     },
     [type, keyword]
   )
@@ -78,6 +86,74 @@ export default function LibraryPage() {
     setDraft('')
     setKeyword('')
     setType('all')
+  }
+
+  const toggleOne = (id: number): void => {
+    setSelected((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]))
+  }
+
+  const selectable = items.filter((item) => item.status === 'present')
+  const allSelected = selectable.length > 0 && selectable.every((item) => selected.includes(item.id))
+  const toggleAll = (): void => {
+    setSelected(allSelected ? [] : selectable.map((item) => item.id))
+  }
+
+  const moveSelected = async (): Promise<void> => {
+    if (selected.length === 0) return
+    const picked = await window.api.library.pickDir()
+    if (!picked.ok) {
+      setToast(picked.error.message)
+      return
+    }
+    // 用户取消选择目录不是错误，什么都不做
+    if (!picked.data.path) return
+    const result = await window.api.library.move(selected, picked.data.path)
+    if (!result.ok) {
+      setToast(result.error.message)
+      return
+    }
+    const failed = result.data.failed.length
+    const moved = selected.length - failed
+    setToast(failed > 0 ? `已移动 ${moved} 个，${failed} 个失败` : `已移动 ${moved} 个文件`)
+    void load(page)
+  }
+
+  const trashItems = async (ids: number[]): Promise<void> => {
+    if (ids.length === 0) return
+    const confirmed = window.confirm(
+      `将 ${ids.length} 个文件移入系统回收站？之后随时可以从回收站还原。`
+    )
+    if (!confirmed) return
+    const result = await window.api.library.trash(ids)
+    if (!result.ok) {
+      setToast(result.error.message)
+      return
+    }
+    const failed = result.data.failed.length
+    setToast(failed > 0 ? `已删除 ${ids.length - failed} 个，${failed} 个失败` : '已移入系统回收站')
+    void load(page)
+  }
+
+  const submitRename = async (): Promise<void> => {
+    if (!renaming) return
+    const result = await window.api.library.rename(renaming.id, renaming.value)
+    if (!result.ok) {
+      // 保留输入框让用户就地修改，不用重新点一次重命名
+      setToast(result.error.message)
+      return
+    }
+    setRenaming(null)
+    setToast('已重命名')
+    void load(page)
+  }
+
+  const openProps = async (id: number): Promise<void> => {
+    const result = await window.api.library.props(id)
+    if (!result.ok) {
+      setToast(result.error.message)
+      return
+    }
+    setPropsItem(result.data)
   }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
@@ -162,21 +238,103 @@ export default function LibraryPage() {
               <span className="dl-summary__warn">本页 {missingCount} 个文件缺失</span>
             ) : null}
           </p>
+
+          <div className="bulk-bar">
+            <label className="bulk-bar__check">
+              <input type="checkbox" checked={allSelected} onChange={toggleAll} />
+              <span>全选本页</span>
+            </label>
+            <span className="bulk-bar__count">已选 {selected.length} 个</span>
+            <button
+              type="button"
+              className="btn btn--small"
+              disabled={selected.length === 0}
+              onClick={() => void moveSelected()}
+            >
+              移动到…
+            </button>
+            <button
+              type="button"
+              className="btn btn--small btn--danger"
+              disabled={selected.length === 0}
+              onClick={() => void trashItems(selected)}
+            >
+              删除到回收站
+            </button>
+            {selected.length > 0 ? (
+              <button
+                type="button"
+                className="btn btn--small btn--ghost"
+                onClick={() => setSelected([])}
+              >
+                取消选择
+              </button>
+            ) : null}
+          </div>
+
           <ul className="dl-list">
             {items.map((item) => {
               const missing = item.status === 'missing'
+              const checked = selected.includes(item.id)
+              const editing = renaming?.id === item.id
               return (
                 <li key={item.id} className={missing ? 'dl-item dl-item--missing' : 'dl-item'}>
+                  <input
+                    type="checkbox"
+                    className="dl-item__check"
+                    checked={checked}
+                    disabled={missing}
+                    aria-label={`选择 ${item.fileName}`}
+                    onChange={() => toggleOne(item.id)}
+                  />
                   <div className="dl-item__main">
-                    <button
-                      type="button"
-                      className="dl-item__name"
-                      disabled={missing}
-                      title={missing ? '文件已不在磁盘上' : '用系统默认程序打开'}
-                      onClick={() => void act(() => window.api.library.open(item.id), '已用默认程序打开')}
-                    >
-                      {item.fileName}
-                    </button>
+                    {editing ? (
+                      <form
+                        className="rename-row"
+                        onSubmit={(event) => {
+                          event.preventDefault()
+                          void submitRename()
+                        }}
+                      >
+                        <input
+                          autoFocus
+                          value={renaming.value}
+                          aria-label="新的文件名"
+                          onChange={(event) =>
+                            setRenaming({ id: item.id, value: event.target.value })
+                          }
+                          onKeyDown={(event) => {
+                            if (event.key === 'Escape') setRenaming(null)
+                          }}
+                        />
+                        {/* 扩展名固定显示，用户只改主体名，避免改成别的类型 */}
+                        <span className="rename-row__ext">
+                          {item.fileName.slice(item.fileName.lastIndexOf('.'))}
+                        </span>
+                        <button type="submit" className="btn btn--small btn--primary">
+                          确定
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--small btn--ghost"
+                          onClick={() => setRenaming(null)}
+                        >
+                          取消
+                        </button>
+                      </form>
+                    ) : (
+                      <button
+                        type="button"
+                        className="dl-item__name"
+                        disabled={missing}
+                        title={missing ? '文件已不在磁盘上' : '用系统默认程序打开'}
+                        onClick={() =>
+                          void act(() => window.api.library.open(item.id), '已用默认程序打开')
+                        }
+                      >
+                        {item.fileName}
+                      </button>
+                    )}
                     <p className="dl-item__meta">
                       <span className={`dl-state dl-state--${missing ? 'failed' : 'done'}`}>
                         {missing ? '文件缺失' : '可用'}
@@ -193,16 +351,40 @@ export default function LibraryPage() {
                       type="button"
                       className="btn btn--small"
                       disabled={missing}
-                      onClick={() => void act(() => window.api.library.reveal(item.id), '已在文件夹中定位')}
+                      onClick={() =>
+                        void act(() => window.api.library.reveal(item.id), '已在文件夹中定位')
+                      }
                     >
                       打开位置
                     </button>
                     <button
                       type="button"
-                      className="btn btn--small btn--ghost"
-                      onClick={() => void act(() => window.api.library.copyPath(item.id), '路径已复制')}
+                      className="btn btn--small"
+                      disabled={missing}
+                      onClick={() => {
+                        const ext = item.fileName.lastIndexOf('.')
+                        setRenaming({
+                          id: item.id,
+                          value: ext > 0 ? item.fileName.slice(0, ext) : item.fileName
+                        })
+                      }}
                     >
-                      复制路径
+                      重命名
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--small"
+                      onClick={() => void openProps(item.id)}
+                    >
+                      属性
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--small btn--ghost"
+                      disabled={missing}
+                      onClick={() => void trashItems([item.id])}
+                    >
+                      删除
                     </button>
                   </div>
                 </li>
@@ -233,6 +415,19 @@ export default function LibraryPage() {
             </div>
           ) : null}
         </>
+      ) : null}
+
+      {propsItem ? (
+        <FilePropsDialog
+          props={propsItem}
+          onClose={() => setPropsItem(null)}
+          onCopyPath={() => {
+            void act(() => window.api.library.copyPath(propsItem.id), '路径已复制')
+          }}
+          onReveal={() => {
+            void act(() => window.api.library.reveal(propsItem.id), '已在文件夹中定位')
+          }}
+        />
       ) : null}
 
       {toast ? <div className="toast">{toast}</div> : null}

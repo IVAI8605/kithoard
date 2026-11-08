@@ -4,6 +4,7 @@ import type {
   DownloadStateEvent,
   DownloadTask,
   LocalFilePage,
+  LocalFileProps,
   LocalFileQuery,
   QuarantineItem,
   RecoveryReport,
@@ -63,14 +64,22 @@ export interface KithoardApi {
     discard: (id: number) => Promise<ApiResult<{ ok: true }>>
   }
   /**
-   * V0.2 本地素材：只读列表与系统级打开动作。
-   * 改名/移动/删除等多选操作排在本批之后，避免一次把文件系统写能力全开。
+   * V0.2 本地素材：查看、系统级打开与文件整理。
+   * 删除只进回收站；移动后由主进程同步库记录与下载任务的目标路径。
    */
   library: {
     list: (query?: LocalFileQuery) => Promise<ApiResult<LocalFilePage>>
     open: (id: number) => Promise<ApiResult<{ ok: true }>>
     reveal: (id: number) => Promise<ApiResult<{ ok: true }>>
     copyPath: (id: number) => Promise<ApiResult<{ ok: true }>>
+    props: (id: number) => Promise<ApiResult<LocalFileProps>>
+    /** newName 只需主体名；带扩展名时必须与原扩展名一致 */
+    rename: (id: number, newName: string) => Promise<ApiResult<{ ok: true; path: string }>>
+    /** failed 是未能移动的 id，界面按「部分成功」提示 */
+    move: (ids: number[], targetDir: string) => Promise<ApiResult<{ ok: true; failed: number[] }>>
+    trash: (ids: number[]) => Promise<ApiResult<{ ok: true; failed: number[] }>>
+    /** 用户在系统对话框里取消时返回 null，界面不应把它当成错误 */
+    pickDir: () => Promise<ApiResult<{ path: string | null }>>
   }
 }
 

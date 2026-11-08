@@ -32,7 +32,13 @@ export const CHANNELS = {
   libraryList: 'library:list',
   libraryOpen: 'library:open',
   libraryReveal: 'library:reveal',
-  libraryCopyPath: 'library:copyPath'
+  libraryCopyPath: 'library:copyPath',
+  libraryProps: 'library:props',
+  libraryRename: 'library:rename',
+  libraryMove: 'library:move',
+  libraryTrash: 'library:trash',
+  // 选目录必须走主进程 dialog，渲染层拿不到真实绝对路径
+  libraryPickDir: 'library:pickDir'
 } as const
 
 /** 渲染层可读的设置键白名单；不在表内的键一律拒绝 */

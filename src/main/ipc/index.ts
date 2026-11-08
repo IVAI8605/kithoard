@@ -161,6 +161,26 @@ export function registerIpc(deps: { userDataDir: string }): { shutdown: () => vo
     CHANNELS.libraryCopyPath,
     wrap((arg) => library.copyPath(arg))
   )
+  ipcMain.handle(
+    CHANNELS.libraryProps,
+    wrap((arg) => library.props(arg))
+  )
+  ipcMain.handle(
+    CHANNELS.libraryRename,
+    wrap((arg) => library.rename(arg))
+  )
+  ipcMain.handle(
+    CHANNELS.libraryMove,
+    wrap((arg) => library.move(arg))
+  )
+  ipcMain.handle(
+    CHANNELS.libraryTrash,
+    wrap((arg) => library.trash(arg))
+  )
+  ipcMain.handle(
+    CHANNELS.libraryPickDir,
+    wrap(() => library.pickDir())
+  )
 
   return { shutdown: () => engine.shutdown() }
 }

@@ -318,6 +318,16 @@ input {
   color: var(--text-dim);
 }
 
+/* 删除类操作统一用危险色描边，和普通按钮区分开 */
+.btn--danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: rgba(217, 132, 122, 0.12);
+}
+
 .searchbar .btn--primary {
   height: 46px;
   padding: 0 26px;
@@ -1128,6 +1138,110 @@ input {
   border-left: 3px solid var(--danger);
 }
 
+/* 多选复选框：缺失文件不可选，避免批量操作把它算进去 */
+.dl-item__check {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 4px 0 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.dl-item__check:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+/* 批量操作条：数字要一眼看到，按钮靠右排列 */
+.bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.bulk-bar__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-dim);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.bulk-bar__check input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+}
+
+.bulk-bar__count {
+  margin-right: auto;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* 行内重命名：扩展名固定跟在输入框后面，避免用户误改类型 */
+.rename-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.rename-row input {
+  flex: 1;
+  min-width: 160px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.rename-row input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.rename-row__ext {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* 属性面板：键值两列，路径整体换行并可选中复制 */
+.props {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px 12px;
+  margin: 0;
+  font-size: 13.5px;
+}
+
+.props dt {
+  color: var(--muted);
+}
+
+.props dd {
+  margin: 0;
+  word-break: break-all;
+  user-select: text;
+}
+
+.props__path {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
 .dl-item__handle {
   flex: none;
   width: 16px;
@@ -1191,6 +1305,8 @@ input {
 .dl-item__actions {
   display: flex;
   flex: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
 }
 
