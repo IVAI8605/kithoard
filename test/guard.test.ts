@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AppError } from '../src/shared/errors'
 import { isAppError } from '../src/shared/errors'
-import { validateSearchQuery } from '../src/main/ipc/guard'
+import { validateSearchQuery } from '../src/main/services/validate'
 
 function capture(run: () => void): AppError {
   try {
