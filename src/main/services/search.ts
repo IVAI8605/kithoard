@@ -5,6 +5,7 @@ import { log } from '../log'
 import { getEnabledSources } from '../settings'
 import type { SourceRegistry } from '../sources/registry'
 import { cacheThumbnails } from '../sources/thumbs'
+import { createSeenTracker } from './seen'
 import { validateSearchQuery } from './validate'
 
 const UPSERT_ASSET = `
@@ -45,6 +46,8 @@ export function createSearchService(deps: {
   registry: SourceRegistry
   thumbsDir: string
 }): SearchService {
+  const seen = createSeenTracker()
+
   return {
     async search(raw) {
       const query = validateSearchQuery(raw)
@@ -68,9 +71,20 @@ export function createSearchService(deps: {
         `search source=${entry.adapter.id} type=${query.type} page=${query.page} hits=${page.items.length}`
       )
 
-      const rows = persistAssets(page.items)
+      // 先把相邻页的重复命中挡掉，再落库与取缩略图，避免为同一张图重复下载
+      const kept = seen.accept(
+        `${entry.adapter.id}:${query.type}:${query.keyword}`,
+        query.page,
+        page.items.map((item) => item.remoteId)
+      )
+      const visible = page.items.filter((item) => kept.has(item.remoteId))
+      if (visible.length !== page.items.length) {
+        log.info(`search dedupe dropped=${page.items.length - visible.length}`)
+      }
+
+      const rows = persistAssets(visible)
       const thumbNames = await cacheThumbnails(
-        page.items.map((item) => item.thumbUrl),
+        visible.map((item) => item.thumbUrl),
         deps.thumbsDir,
         AbortSignal.timeout(25_000)
       )
