@@ -99,3 +99,37 @@ export type DownloadState =
   | 'failed'
   | 'canceled'
   | 'quarantined'
+
+/** 下载管理页消费的一条任务；title 来自关联素材，素材被删后为 null */
+export interface DownloadTask {
+  id: string
+  assetId: number | null
+  title: string | null
+  state: DownloadState
+  targetPath: string
+  /** 由主进程算好的文件名，渲染层不需要懂 Windows 路径规则 */
+  fileName: string
+  totalBytes: number | null
+  receivedBytes: number
+  errorCode: string | null
+  retryCount: number
+  sortOrder: number
+  createdAt: number
+  updatedAt: number
+}
+
+/** `download:progress` 事件：500 ms 合并一次，不落库 */
+export interface DownloadProgressEvent {
+  taskId: string
+  receivedBytes: number
+  totalBytes: number | null
+}
+
+/** `download:state` 事件：状态迁移时推送，收到后无需整表刷新 */
+export interface DownloadStateEvent {
+  taskId: string
+  state: DownloadState
+  receivedBytes: number
+  totalBytes: number | null
+  errorCode: string | null
+}

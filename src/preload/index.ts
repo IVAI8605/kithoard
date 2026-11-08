@@ -1,5 +1,6 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type { KithoardApi } from '@shared/api'
+import type { DownloadProgressEvent, DownloadStateEvent } from '@shared/types'
 import { CHANNELS } from '@shared/channels'
 
 // 只暴露白名单方法；渲染层拿不到 ipcRenderer 本身，也就无法自己拼通道
@@ -24,8 +25,21 @@ const api: KithoardApi = {
   download: {
     enqueue: (assetIds) => ipcRenderer.invoke(CHANNELS.downloadEnqueue, { assetIds }),
     pause: (taskId) => ipcRenderer.invoke(CHANNELS.downloadPause, { taskId }),
-    cancel: (taskId) => ipcRenderer.invoke(CHANNELS.downloadCancel, { taskId })
+    cancel: (taskId) => ipcRenderer.invoke(CHANNELS.downloadCancel, { taskId }),
+    resume: (taskId) => ipcRenderer.invoke(CHANNELS.downloadResume, { taskId }),
+    retry: (taskId, confirm) => ipcRenderer.invoke(CHANNELS.downloadRetry, { taskId, confirm }),
+    reorder: (orderedIds) => ipcRenderer.invoke(CHANNELS.downloadReorder, { orderedIds }),
+    list: () => ipcRenderer.invoke(CHANNELS.downloadList),
+    onProgress: (listener) => subscribe<DownloadProgressEvent>(CHANNELS.downloadProgress, listener),
+    onState: (listener) => subscribe<DownloadStateEvent>(CHANNELS.downloadState, listener)
   }
+}
+
+/** 事件订阅统一返回取消函数，避免页面反复挂载后监听器叠加 */
+function subscribe<T>(channel: string, listener: (payload: T) => void): () => void {
+  const handler = (_event: IpcRendererEvent, payload: T): void => listener(payload)
+  ipcRenderer.on(channel, handler)
+  return () => ipcRenderer.removeListener(channel, handler)
 }
 
 contextBridge.exposeInMainWorld('api', api)

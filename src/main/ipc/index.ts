@@ -1,7 +1,8 @@
-import { ipcMain, type IpcMainInvokeEvent } from 'electron'
+import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import path from 'node:path'
 import { CHANNELS } from '@shared/channels'
 import { fail, isAppError, ok, type Envelope } from '@shared/errors'
+import { createDownloadEngine } from '../download/engine'
 import { log } from '../log'
 import { getApiKey } from '../settings'
 import { createSourceRegistry } from '../sources'
@@ -34,13 +35,19 @@ function wrap(
 /**
  * IPC 层只做「通道 → service → 信封」的转接。业务与校验都在 services 里，
  * 这样 V1.1 的 agent 网关可以复用同一份实现，不会出现两套规则。
+ * 返回 shutdown 供退出流程先停下载再关库，避免异步写入撞上已关闭的连接。
  */
-export function registerIpc(deps: { userDataDir: string }): void {
+export function registerIpc(deps: { userDataDir: string }): { shutdown: () => void } {
   const cacheRoot = path.join(deps.userDataDir, 'cache')
   const registry: SourceRegistry = createSourceRegistry({
     getApiKey,
     cacheDir: path.join(cacheRoot, 'http')
   })
+
+  // 下载进度/状态事件统一从这里广播；窗口还没建好时自然没人接收，不需要判空窗
+  const emit = (channel: string, payload: unknown): void => {
+    for (const win of BrowserWindow.getAllWindows()) win.webContents.send(channel, payload)
+  }
 
   const sources = createSourceService({ registry })
   const search = createSearchService({ registry, thumbsDir: path.join(cacheRoot, 'thumbs') })
@@ -48,7 +55,8 @@ export function registerIpc(deps: { userDataDir: string }): void {
   const recent = createRecentService({ registry, thumbsDir: path.join(cacheRoot, 'thumbs') })
   const settings = createSettingsService({ registry })
   const clipboard = createClipboardService()
-  const download = createDownloadService()
+  const engine = createDownloadEngine({ emit })
+  const download = createDownloadService({ engine, notify: emit })
 
   ipcMain.handle(
     CHANNELS.sourceList,
@@ -90,4 +98,22 @@ export function registerIpc(deps: { userDataDir: string }): void {
     CHANNELS.downloadCancel,
     wrap((arg) => download.cancel(arg))
   )
+  ipcMain.handle(
+    CHANNELS.downloadResume,
+    wrap((arg) => download.resume(arg))
+  )
+  ipcMain.handle(
+    CHANNELS.downloadRetry,
+    wrap((arg) => download.retry(arg))
+  )
+  ipcMain.handle(
+    CHANNELS.downloadReorder,
+    wrap((arg) => download.reorder(arg))
+  )
+  ipcMain.handle(
+    CHANNELS.downloadList,
+    wrap(() => download.list())
+  )
+
+  return { shutdown: () => engine.shutdown() }
 }

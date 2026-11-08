@@ -18,8 +18,14 @@ app
     initLogging(userData)
     openDatabase(userData)
     registerThumbProtocol(path.join(userData, 'cache', 'thumbs'))
-    registerIpc({ userDataDir: userData })
+    const runtime = registerIpc({ userDataDir: userData })
     createMainWindow()
+
+    // 先停下载再关库：引擎的异步写入不能撞上已关闭的 SQLite 连接
+    app.on('before-quit', () => {
+      runtime.shutdown()
+      closeDatabase()
+    })
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
@@ -32,8 +38,4 @@ app
 
 app.on('window-all-closed', () => {
   app.quit()
-})
-
-app.on('before-quit', () => {
-  closeDatabase()
 })

@@ -2,9 +2,11 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import type { AssetType, DownloadState } from '@shared/types'
+import { CHANNELS } from '@shared/channels'
 import { makeError } from '@shared/errors'
+import type { AssetType, DownloadState, DownloadTask } from '@shared/types'
 import { getDb } from '../db'
+import { isAutoStartEnabled, type DownloadEngine } from '../download/engine'
 import { buildTargetPath, extFromUrl, normalizePath, sanitizeBaseName } from '../download/naming'
 import { nextState } from '../download/task'
 import { getPlainSetting } from '../settings'
@@ -13,6 +15,8 @@ import { getPlainSetting } from '../settings'
 const MAX_TASKS_PER_ENQUEUE = 200
 /** 任务 ID 是本应用生成的 UUID，超长输入直接判非法，不拿它去查库 */
 const TASK_ID_MAX = 64
+/** §5.3：失败重试超过 3 次需人工确认，避免坏链接无限重试 */
+const MAX_AUTO_RETRY = 3
 const UNIQUE_RETRY = 3
 
 interface AssetRow {
@@ -29,16 +33,41 @@ interface TaskRow {
   state: DownloadState
   target_path: string
   received_bytes: number
+  total_bytes: number | null
+  retry_count: number
+  error_code: string | null
+}
+
+interface ListRow {
+  id: string
+  asset_id: number | null
+  title: string | null
+  state: DownloadState
+  target_path: string
+  total_bytes: number | null
+  received_bytes: number
+  error_code: string | null
+  retry_count: number
+  sort_order: number
+  created_at: number
+  updated_at: number
 }
 
 export interface DownloadService {
   /** 入参未校验即传入：校验与状态机都属于 service，界面与未来的 agent 网关共用同一份 */
   enqueue(raw: unknown): { taskIds: string[] }
-  pause(raw: unknown): { ok: true }
-  cancel(raw: unknown): { ok: true }
+  pause(raw: unknown): Promise<{ ok: true }>
+  cancel(raw: unknown): Promise<{ ok: true }>
+  resume(raw: unknown): { ok: true }
+  retry(raw: unknown): { ok: true }
+  reorder(raw: unknown): { ok: true }
+  list(): DownloadTask[]
 }
 
-export function createDownloadService(): DownloadService {
+export function createDownloadService(deps: {
+  engine: DownloadEngine
+  notify: (channel: string, payload: unknown) => void
+}): DownloadService {
   return {
     enqueue(raw) {
       const assetIds = readAssetIds(raw)
@@ -54,31 +83,138 @@ export function createDownloadService(): DownloadService {
       const dir = resolveDownloadDir()
       const now = Date.now()
       const orderBase = readMaxSortOrder()
-      return { taskIds: insertTasks(db, assets, dir, now, orderBase) }
+      const taskIds = insertTasks(db, assets, dir, now, orderBase)
+      // §5.2：autoStart 只决定「新入队是否立即开始」，关了就先待在队列里
+      if (isAutoStartEnabled()) deps.engine.pump()
+      return { taskIds }
     },
 
-    pause(raw) {
+    async pause(raw) {
       const task = readTask(raw)
       // 严格按 §5.3：暂停只从 downloading 出发；排队中的任务请用取消
-      const state = nextState(task.state, 'pause')
-      // 进度以磁盘为准：中止过请求后，DB 里的 received_bytes 可能落后于 .part 实际大小
-      const received = partSize(task.target_path) ?? task.received_bytes
+      nextState(task.state, 'pause')
+      const handled = await deps.engine.stop(task.id, 'pause')
+      if (handled) return { ok: true }
+
+      // 没有在跑的会话（例如上次异常退出留下的 downloading）：直接按磁盘校正后置为暂停。
+      // 等引擎收尾期间状态可能已变成 completed/failed，所以这里重新读一次，不用旧值覆盖
+      const latest = readTask(raw)
+      const state = nextState(latest.state, 'pause')
+      const received = partSize(latest.target_path) ?? latest.received_bytes
       getDb()
         .prepare('UPDATE downloads SET state = ?, received_bytes = ?, updated_at = ? WHERE id = ?')
-        .run(state, received, Date.now(), task.id)
+        .run(state, received, Date.now(), latest.id)
+      emitState(latest.id, state, received, latest.total_bytes, null)
       return { ok: true }
     },
 
-    cancel(raw) {
+    async cancel(raw) {
       const task = readTask(raw)
-      const state = nextState(task.state, 'cancel')
+      nextState(task.state, 'cancel')
+      const handled = await deps.engine.stop(task.id, 'cancel')
+      if (handled) return { ok: true }
+
+      const latest = readTask(raw)
+      const state = nextState(latest.state, 'cancel')
       getDb()
         .prepare('UPDATE downloads SET state = ?, updated_at = ? WHERE id = ?')
-        .run(state, Date.now(), task.id)
-      // .part 的物理删除放在下载引擎批次：本批还不会产生临时文件，
-      // 提前写删除逻辑既没有可删对象，也会掩盖引擎落盘是否真的发生
+        .run(state, Date.now(), latest.id)
+      // §5.8：`.part` 是应用临时文件，取消时允许物理删除
+      removePart(latest.target_path)
+      emitState(latest.id, state, latest.received_bytes, latest.total_bytes, latest.error_code)
       return { ok: true }
+    },
+
+    resume(raw) {
+      const task = readTask(raw)
+      const state = nextState(task.state, 'resume')
+      // §5.3：继续的任务排到队首，用户点「继续」就是希望它优先跑
+      const head = readMinSortOrder() - 1
+      getDb()
+        .prepare('UPDATE downloads SET state = ?, sort_order = ?, updated_at = ? WHERE id = ?')
+        .run(state, head, Date.now(), task.id)
+      emitState(task.id, state, task.received_bytes, task.total_bytes, task.error_code)
+      deps.engine.pump()
+      return { ok: true }
+    },
+
+    retry(raw) {
+      const task = readTask(raw)
+      const state = nextState(task.state, 'retry')
+      // 超过 3 次仍失败说明重试本身解决不了问题，必须让界面明确问一次
+      if (task.retry_count >= MAX_AUTO_RETRY && asRecord(raw).confirm !== true) {
+        throw makeError('E_INVALID_ARG', 'retry confirmation required')
+      }
+      getDb()
+        .prepare(
+          'UPDATE downloads SET state = ?, retry_count = ?, error_code = NULL, updated_at = ? WHERE id = ?'
+        )
+        .run(state, task.retry_count + 1, Date.now(), task.id)
+      emitState(task.id, state, task.received_bytes, task.total_bytes, null)
+      deps.engine.pump()
+      return { ok: true }
+    },
+
+    reorder(raw) {
+      const orderedIds = readOrderedIds(raw)
+      const db = getDb()
+      const known = new Set(
+        (db.prepare('SELECT id FROM downloads').all() as Array<{ id: string }>).map((row) => row.id)
+      )
+      if (!orderedIds.every((id) => known.has(id))) throw makeError('E_INVALID_ARG', 'orderedIds')
+
+      const all = db
+        .prepare('SELECT id FROM downloads ORDER BY sort_order, created_at')
+        .all() as Array<{ id: string }>
+      const ordered = new Set(orderedIds)
+      const tail = all.map((row) => row.id).filter((id) => !ordered.has(id))
+      const update = db.prepare('UPDATE downloads SET sort_order = ?, updated_at = ? WHERE id = ?')
+      const now = Date.now()
+      db.transaction(() => {
+        orderedIds.forEach((id, index) => update.run(index + 1, now, id))
+        // 未参与排序的任务按原相对顺序排到后面，避免出现两组同名次
+        tail.forEach((id, index) => update.run(orderedIds.length + index + 1, now, id))
+      })()
+      return { ok: true }
+    },
+
+    list() {
+      const rows = getDb()
+        .prepare(
+          `SELECT d.id, d.asset_id, a.title AS title, d.state, d.target_path,
+                  d.total_bytes, d.received_bytes, d.error_code, d.retry_count,
+                  d.sort_order, d.created_at, d.updated_at
+             FROM downloads d
+             LEFT JOIN assets a ON a.id = d.asset_id
+            ORDER BY d.sort_order, d.created_at`
+        )
+        .all() as ListRow[]
+      return rows.map((row) => ({
+        id: row.id,
+        assetId: row.asset_id,
+        title: row.title,
+        state: row.state,
+        targetPath: row.target_path,
+        fileName: path.win32.basename(row.target_path),
+        totalBytes: row.total_bytes,
+        receivedBytes: row.received_bytes,
+        errorCode: row.error_code,
+        retryCount: row.retry_count,
+        sortOrder: row.sort_order,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      }))
     }
+  }
+
+  function emitState(
+    taskId: string,
+    state: DownloadState,
+    receivedBytes: number,
+    totalBytes: number | null,
+    errorCode: string | null
+  ): void {
+    deps.notify(CHANNELS.downloadState, { taskId, state, receivedBytes, totalBytes, errorCode })
   }
 }
 
@@ -98,13 +234,29 @@ function readAssetIds(raw: unknown): number[] {
   return Array.from(new Set(value as number[]))
 }
 
+function readOrderedIds(raw: unknown): string[] {
+  const value = asRecord(raw).orderedIds
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_TASKS_PER_ENQUEUE) {
+    throw makeError('E_INVALID_ARG', 'orderedIds')
+  }
+  if (!value.every((id) => typeof id === 'string' && id.length > 0 && id.length <= TASK_ID_MAX)) {
+    throw makeError('E_INVALID_ARG', 'orderedIds')
+  }
+  // 重复 ID 无法定义先后，直接拒绝而不是猜一个顺序
+  if (new Set(value).size !== value.length) throw makeError('E_INVALID_ARG', 'orderedIds')
+  return value as string[]
+}
+
 function readTask(raw: unknown): TaskRow {
   const taskId = asRecord(raw).taskId
   if (typeof taskId !== 'string' || !taskId || taskId.length > TASK_ID_MAX) {
     throw makeError('E_INVALID_ARG', 'taskId')
   }
   const row = getDb()
-    .prepare('SELECT id, state, target_path, received_bytes FROM downloads WHERE id = ?')
+    .prepare(
+      `SELECT id, state, target_path, received_bytes, total_bytes, retry_count, error_code
+         FROM downloads WHERE id = ?`
+    )
     .get(taskId) as TaskRow | undefined
   if (!row) throw makeError('E_INVALID_ARG', 'taskId')
   return row
@@ -143,6 +295,13 @@ function resolveDownloadDir(): string {
 function readMaxSortOrder(): number {
   const row = getDb()
     .prepare('SELECT COALESCE(MAX(sort_order), 0) AS value FROM downloads')
+    .get() as { value: number }
+  return row.value
+}
+
+function readMinSortOrder(): number {
+  const row = getDb()
+    .prepare('SELECT COALESCE(MIN(sort_order), 0) AS value FROM downloads')
     .get() as { value: number }
   return row.value
 }
@@ -219,5 +378,14 @@ function partSize(targetPath: string): number | null {
     return info.isFile() ? info.size : null
   } catch {
     return null
+  }
+}
+
+/** §5.8：`.part` 属于应用临时文件，取消时允许物理删除 */
+function removePart(targetPath: string): void {
+  try {
+    fs.unlinkSync(`${targetPath}.part`)
+  } catch {
+    // 不存在就是已经清理过
   }
 }

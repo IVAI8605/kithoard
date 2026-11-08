@@ -1,5 +1,8 @@
 import type {
   AssetDetail,
+  DownloadProgressEvent,
+  DownloadStateEvent,
+  DownloadTask,
   SearchPageResult,
   SearchQuery,
   SearchResultItem,
@@ -27,11 +30,19 @@ export interface KithoardApi {
   clipboard: {
     writeText: (text: string) => Promise<ApiResult<{ ok: true }>>
   }
-  /** V0.2 下载队列；引擎落地前先提供入队与两种终止操作 */
+  /** V0.2 下载队列：队列操作与两类实时事件 */
   download: {
     enqueue: (assetIds: number[]) => Promise<ApiResult<{ taskIds: string[] }>>
     pause: (taskId: string) => Promise<ApiResult<{ ok: true }>>
     cancel: (taskId: string) => Promise<ApiResult<{ ok: true }>>
+    resume: (taskId: string) => Promise<ApiResult<{ ok: true }>>
+    /** 重试失败任务；超过 3 次需要界面二次确认后带 confirm=true 再调 */
+    retry: (taskId: string, confirm?: boolean) => Promise<ApiResult<{ ok: true }>>
+    reorder: (orderedIds: string[]) => Promise<ApiResult<{ ok: true }>>
+    list: () => Promise<ApiResult<DownloadTask[]>>
+    /** 返回取消订阅函数；页面卸载时调用，避免监听器越积越多 */
+    onProgress: (listener: (event: DownloadProgressEvent) => void) => () => void
+    onState: (listener: (event: DownloadStateEvent) => void) => () => void
   }
 }
 
