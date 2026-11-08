@@ -43,17 +43,17 @@ describe('收藏夹 service', () => {
 
   it('add：去重，已收藏的不重复计入', async () => {
     await service.toggle({ assetId: 2 })
-    const result = await service.add({ ids: [2, 2, 3] })
+    const result = await service.add({ assetIds: [2, 2, 3] })
     expect(result).toEqual({ ok: true, added: 1 })
   })
 
-  it('add：非法 ids 拒绝', async () => {
+  it('add：非法 assetIds 拒绝', async () => {
     for (const bad of [
-      { ids: [] },
-      { ids: Array.from({ length: 201 }, (_, i) => i + 1) },
-      { ids: [1.5] },
-      { ids: ['1'] },
-      { ids: [0] },
+      { assetIds: [] },
+      { assetIds: Array.from({ length: 201 }, (_, i) => i + 1) },
+      { assetIds: [1.5] },
+      { assetIds: ['1'] },
+      { assetIds: [0] },
       {}
     ]) {
       await expect(service.add(bad)).rejects.toThrow()
@@ -62,14 +62,14 @@ describe('收藏夹 service', () => {
 
   it('remove：移除存在的，忽略不存在的', async () => {
     await service.toggle({ assetId: 4 })
-    const result = await service.remove({ ids: [4, 5] })
+    const result = await service.remove({ assetIds: [4, 5] })
     expect(result).toEqual({ ok: true, removed: 1 })
-    const after = await service.remove({ ids: [4] })
+    const after = await service.remove({ assetIds: [4] })
     expect(after).toEqual({ ok: true, removed: 0 })
   })
 
-  it('remove：非法 ids 拒绝', async () => {
-    for (const bad of [{ ids: [] }, { ids: [0] }, { ids: [1.5] }]) {
+  it('remove：非法 assetIds 拒绝', async () => {
+    for (const bad of [{ assetIds: [] }, { assetIds: [0] }, { assetIds: [1.5] }]) {
       await expect(service.remove(bad)).rejects.toThrow()
     }
   })

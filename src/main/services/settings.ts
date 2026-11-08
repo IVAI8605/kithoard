@@ -40,7 +40,10 @@ function currentDownloadDir(): string {
 }
 
 function currentConcurrency(): number {
-  const value = Number(getPlainSetting('download.concurrency'))
+  const raw = getPlainSetting('download.concurrency')
+  // Number(null) 是 0，直接转数字会把「没设置过」误判成并发 1；必须先挡掉空值
+  if (raw === null || raw.trim() === '') return 3
+  const value = Number(raw)
   if (!Number.isFinite(value)) return 3
   return Math.min(5, Math.max(1, Math.trunc(value)))
 }

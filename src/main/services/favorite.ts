@@ -167,14 +167,16 @@ function readAssetId(raw: unknown): number {
 }
 
 function readIds(raw: unknown): number[] {
-  const value = typeof raw === 'object' && raw !== null ? (raw as { ids?: unknown }).ids : undefined
+  // 对外 API 与 preload 都叫 assetIds；只用一套参数名，避免 add 成功一半、remove 报参数错
+  const value =
+    typeof raw === 'object' && raw !== null ? (raw as { assetIds?: unknown }).assetIds : undefined
   if (!Array.isArray(value) || value.length === 0 || value.length > MAX_FAVORITE_IDS) {
-    throw makeError('E_INVALID_ARG', 'ids')
+    throw makeError('E_INVALID_ARG', 'assetIds')
   }
   const seen = new Set<number>()
   for (const item of value) {
     if (typeof item !== 'number' || !Number.isInteger(item) || item <= 0) {
-      throw makeError('E_INVALID_ARG', 'ids')
+      throw makeError('E_INVALID_ARG', 'assetIds')
     }
     seen.add(item)
   }
