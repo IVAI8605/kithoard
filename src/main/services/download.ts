@@ -9,6 +9,7 @@ import { getDb } from '../db'
 import { isAutoStartEnabled, type DownloadEngine } from '../download/engine'
 import { buildTargetPath, extFromUrl, normalizePath, sanitizeBaseName } from '../download/naming'
 import { nextState } from '../download/task'
+import { checkDownloadUrl, needsLargeFileConfirm } from '../safety/policy'
 import { getPlainSetting } from '../settings'
 
 /** §6.3 规定所有 id 数组长度 ≤ 200 */
@@ -71,6 +72,7 @@ export function createDownloadService(deps: {
   return {
     enqueue(raw) {
       const assetIds = readAssetIds(raw)
+      const confirmLarge = asRecord(raw).confirmLarge === true
       const db = getDb()
       const assets = loadAssets(assetIds)
       // 授权不明或付费素材一律不下载；这条判断必须在入队时做，不能等下载完才发现
@@ -78,6 +80,15 @@ export function createDownloadService(deps: {
         if (asset.license === 'paid') throw makeError('E_LICENSE_PAID', String(asset.id))
         if (asset.license !== 'free') throw makeError('E_LICENSE_UNKNOWN', String(asset.id))
         if (!asset.preview_url) throw makeError('E_UNSUPPORTED', `asset ${asset.id} has no url`)
+      }
+      // 下载前安全拦截（§7.4-5）：扩展名黑/白名单先挡一层，真正的内容判定留给魔数校验
+      for (const asset of assets) {
+        const check = checkDownloadUrl(asset.preview_url as string, asset.type)
+        if (!check.ok) throw makeError('E_UNSUPPORTED', check.reason)
+        if (needsLargeFileConfirm(asset.size_bytes) && !confirmLarge) {
+          // 界面批次会把它接到「确认下载这么大文件」弹窗；当前要求调用方显式确认
+          throw makeError('E_INVALID_ARG', 'confirmLarge')
+        }
       }
 
       const dir = resolveDownloadDir()

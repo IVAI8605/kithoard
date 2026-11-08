@@ -3,6 +3,7 @@ import type {
   DownloadProgressEvent,
   DownloadStateEvent,
   DownloadTask,
+  QuarantineItem,
   SearchPageResult,
   SearchQuery,
   SearchResultItem,
@@ -43,6 +44,12 @@ export interface KithoardApi {
     /** 返回取消订阅函数；页面卸载时调用，避免监听器越积越多 */
     onProgress: (listener: (event: DownloadProgressEvent) => void) => () => void
     onState: (listener: (event: DownloadStateEvent) => void) => () => void
+  }
+  /** V0.2 隔离区：恢复回原路径，或移入系统回收站 */
+  quarantine: {
+    list: () => Promise<ApiResult<QuarantineItem[]>>
+    restore: (id: number) => Promise<ApiResult<{ ok: true }>>
+    discard: (id: number) => Promise<ApiResult<{ ok: true }>>
   }
 }
 

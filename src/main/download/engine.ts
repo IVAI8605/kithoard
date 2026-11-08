@@ -1,9 +1,12 @@
 import fs from 'node:fs'
+import path from 'node:path'
 import { CHANNELS } from '@shared/channels'
 import { makeError, isAppError, type ErrorCode } from '@shared/errors'
-import type { DownloadState } from '@shared/types'
+import type { AssetType, DownloadState } from '@shared/types'
 import { getDb } from '../db'
 import { log } from '../log'
+import { judgeFile } from '../safety/magic'
+import { ensureDir, moveFile, uniqueQuarantinePath } from '../safety/quarantine'
 import { getPlainSetting } from '../settings'
 import { normalizePath } from './naming'
 import { decideRange, parseContentRange, type HttpRangeMeta } from './range'
@@ -25,6 +28,7 @@ const MAX_ROUNDS = 20
 interface TaskRow {
   id: string
   asset_id: number | null
+  asset_type: AssetType | null
   state: DownloadState
   target_path: string
   url: string
@@ -65,7 +69,10 @@ export interface DownloadEngine {
   shutdown(): void
 }
 
-export function createDownloadEngine(deps: { emit: (channel: string, payload: unknown) => void }): DownloadEngine {
+export function createDownloadEngine(deps: {
+  emit: (channel: string, payload: unknown) => void
+  quarantineDir: string
+}): DownloadEngine {
   const running = new Map<string, Session>()
   let closed = false
 
@@ -83,10 +90,12 @@ export function createDownloadEngine(deps: { emit: (channel: string, payload: un
     const db = getDb()
     const row = db
       .prepare(
-        `SELECT id, asset_id, state, target_path, url, total_bytes, received_bytes, etag, last_modified
-           FROM downloads
-          WHERE state = 'queued'
-          ORDER BY sort_order, created_at
+        `SELECT d.id, d.asset_id, a.type AS asset_type, d.state, d.target_path, d.url,
+                d.total_bytes, d.received_bytes, d.etag, d.last_modified
+           FROM downloads d
+           LEFT JOIN assets a ON a.id = d.asset_id
+          WHERE d.state = 'queued'
+          ORDER BY d.sort_order, d.created_at
           LIMIT 1`
       )
       .get() as TaskRow | undefined
@@ -278,12 +287,18 @@ export function createDownloadEngine(deps: { emit: (channel: string, payload: un
       throw makeError('E_VERIFY_FAILED', 'size mismatch')
     }
 
-    // §5.3 禁止跳过 verifying；本批先只校验大小，魔数与风险扫描在下一批补齐
+    // §5.3 禁止跳过 verifying；先做大小、可读性与魔数判定（§7.4-6）
     const verifying = transition(rt.row.id, 'verify', {
       receivedBytes: size,
       totalBytes: rt.totalBytes
     })
     emitState(rt.row.id, verifying, size, rt.totalBytes, null)
+
+    const judgement = judgeFile(readHead(partPath), expectedType(rt.row))
+    if (!judgement.ok) {
+      quarantineAndBlock(rt, size, judgement.reason ?? '文件格式与声明不符')
+      return
+    }
 
     if (fs.existsSync(rt.row.target_path)) {
       // 不覆盖任何已有文件；保留 .part，等用户决定重试或取消
@@ -322,6 +337,46 @@ export function createDownloadEngine(deps: { emit: (channel: string, payload: un
     }
     emitState(rt.row.id, 'completed', finalSize, rt.totalBytes ?? finalSize, null)
     log.info(`download completed: ${rt.row.id} ${finalSize} bytes`)
+  }
+
+  /**
+   * 判定有风险时把 `.part` 移入隔离区（§5.3 verifying → quarantined）。
+   * 不删除、不改名到目标路径；用户可在隔离区手动恢复或放弃（移入回收站）。
+   */
+  function quarantineAndBlock(rt: TaskRuntime, size: number, reason: string): void {
+    const state = nextState('verifying', 'quarantine')
+    ensureDir(deps.quarantineDir)
+    const quarantinePath = uniqueQuarantinePath(deps.quarantineDir, rt.row.target_path)
+    moveFile(partPathOf(rt.row), quarantinePath)
+
+    const now = Date.now()
+    const db = getDb()
+    try {
+      db.transaction(() => {
+        db.prepare(
+          `UPDATE downloads
+              SET state = ?, received_bytes = ?, total_bytes = ?, error_code = 'E_RISK_FILE', updated_at = ?
+            WHERE id = ?`
+        ).run(state, size, rt.totalBytes ?? size, now, rt.row.id)
+        db.prepare(
+          `INSERT INTO local_files (asset_id, download_id, path, status, size_bytes, created_at, updated_at)
+           VALUES (?, ?, ?, 'quarantined', ?, ?, ?)
+           ON CONFLICT(path) DO UPDATE SET
+             download_id = excluded.download_id,
+             status = 'quarantined',
+             size_bytes = excluded.size_bytes,
+             updated_at = excluded.updated_at`
+        ).run(rt.row.asset_id, rt.row.id, normalizePath(quarantinePath), size, now, now)
+        db.prepare(
+          'INSERT INTO quarantine (download_id, path, reason, created_at) VALUES (?, ?, ?, ?)'
+        ).run(rt.row.id, normalizePath(quarantinePath), reason, now)
+      })()
+    } catch (error) {
+      log.error(`download quarantine db error: ${rt.row.id} ${describe(error)}`)
+      return
+    }
+    emitState(rt.row.id, state, size, rt.totalBytes ?? size, 'E_RISK_FILE')
+    log.warn(`download quarantined: ${rt.row.id} ${reason}`)
   }
 
   function failTask(rt: TaskRuntime, code: ErrorCode): void {
@@ -481,6 +536,33 @@ export function isAutoStartEnabled(): boolean {
 
 function partPathOf(row: { target_path: string }): string {
   return `${row.target_path}.part`
+}
+
+/** 只读文件头 64 字节；读不了按校验失败处理，不放行 */
+function readHead(filePath: string): Uint8Array {
+  let fd: number | null = null
+  try {
+    fd = fs.openSync(filePath, 'r')
+    const buffer = Buffer.alloc(64)
+    const read = fs.readSync(fd, buffer, 0, buffer.length, 0)
+    if (read === 0) throw makeError('E_VERIFY_FAILED', 'empty file')
+    return buffer.subarray(0, read)
+  } catch (error) {
+    if (isAppError(error)) throw error
+    throw makeError('E_VERIFY_FAILED', 'unreadable')
+  } finally {
+    if (fd !== null) fs.closeSync(fd)
+  }
+}
+
+/** 素材记录被删后只能按目标扩展名推断，避免把图片误判成视频而白白隔离 */
+function expectedType(row: TaskRow): AssetType {
+  if (row.asset_type) return row.asset_type
+  const ext = path.extname(row.target_path).slice(1).toLowerCase()
+  if (['mp4', 'webm', 'mov', 'mkv'].includes(ext)) return 'video'
+  if (['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'].includes(ext)) return 'audio'
+  if (['ttf', 'otf', 'woff', 'woff2'].includes(ext)) return 'font'
+  return 'image'
 }
 
 function partSize(targetPath: string): number | null {

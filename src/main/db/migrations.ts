@@ -87,6 +87,22 @@ CREATE TABLE local_files (
 CREATE INDEX idx_local_files_status ON local_files(status);
 `
 
+/**
+ * V0.2 安全批次：隔离区需要独立记录「为什么被隔离」，而 local_files 只表达文件现状。
+ * 不把原因塞进 downloads.error_code：错误码是枚举，承担不了可读原因（§4.1 要求判定必须给原因）。
+ */
+const SCHEMA_V3 = `
+CREATE TABLE quarantine (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  download_id TEXT REFERENCES downloads(id) ON DELETE SET NULL,
+  path TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  reason TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX idx_quarantine_created ON quarantine(created_at);
+`
+
 export const MIGRATIONS: Migration[] = [
   {
     version: 1,
@@ -98,6 +114,12 @@ export const MIGRATIONS: Migration[] = [
     version: 2,
     up: (db) => {
       db.exec(SCHEMA_V2)
+    }
+  },
+  {
+    version: 3,
+    up: (db) => {
+      db.exec(SCHEMA_V3)
     }
   }
 ]

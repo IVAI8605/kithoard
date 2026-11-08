@@ -133,3 +133,16 @@ export interface DownloadStateEvent {
   totalBytes: number | null
   errorCode: string | null
 }
+
+/** 隔离区条目；reason 是给人看的判定原因，不是错误码 */
+export interface QuarantineItem {
+  id: number
+  downloadId: string | null
+  title: string | null
+  /** 原本要放到的位置，恢复时用 */
+  targetPath: string | null
+  /** 文件当前所在位置 */
+  path: string
+  reason: string
+  createdAt: number
+}

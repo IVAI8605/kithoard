@@ -10,6 +10,7 @@ import type { SourceRegistry } from '../sources/registry'
 import { createClipboardService } from '../services/clipboard'
 import { createDetailService } from '../services/detail'
 import { createDownloadService } from '../services/download'
+import { createQuarantineService } from '../services/quarantine'
 import { createRecentService } from '../services/recent'
 import { createSearchService } from '../services/search'
 import { createSettingsService } from '../services/settings'
@@ -55,8 +56,12 @@ export function registerIpc(deps: { userDataDir: string }): { shutdown: () => vo
   const recent = createRecentService({ registry, thumbsDir: path.join(cacheRoot, 'thumbs') })
   const settings = createSettingsService({ registry })
   const clipboard = createClipboardService()
-  const engine = createDownloadEngine({ emit })
+  const engine = createDownloadEngine({
+    emit,
+    quarantineDir: path.join(deps.userDataDir, 'quarantine')
+  })
   const download = createDownloadService({ engine, notify: emit })
+  const quarantine = createQuarantineService({ notify: emit })
 
   ipcMain.handle(
     CHANNELS.sourceList,
@@ -113,6 +118,18 @@ export function registerIpc(deps: { userDataDir: string }): { shutdown: () => vo
   ipcMain.handle(
     CHANNELS.downloadList,
     wrap(() => download.list())
+  )
+  ipcMain.handle(
+    CHANNELS.quarantineList,
+    wrap(() => quarantine.list())
+  )
+  ipcMain.handle(
+    CHANNELS.quarantineRestore,
+    wrap((arg) => quarantine.restore(arg))
+  )
+  ipcMain.handle(
+    CHANNELS.quarantineDiscard,
+    wrap((arg) => quarantine.discard(arg))
   )
 
   return { shutdown: () => engine.shutdown() }

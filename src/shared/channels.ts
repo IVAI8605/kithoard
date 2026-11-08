@@ -19,7 +19,11 @@ export const CHANNELS = {
   downloadList: 'download:list',
   // 事件通道（主进程 → 渲染层），不进 invoke 白名单
   downloadProgress: 'download:progress',
-  downloadState: 'download:state'
+  downloadState: 'download:state',
+  // V0.2 隔离区：判定有风险的文件只移入不删除，放弃时移入系统回收站
+  quarantineList: 'quarantine:list',
+  quarantineRestore: 'quarantine:restore',
+  quarantineDiscard: 'quarantine:discard'
 } as const
 
 /** 渲染层可读的设置键白名单；不在表内的键一律拒绝 */

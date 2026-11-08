@@ -32,6 +32,11 @@ const api: KithoardApi = {
     list: () => ipcRenderer.invoke(CHANNELS.downloadList),
     onProgress: (listener) => subscribe<DownloadProgressEvent>(CHANNELS.downloadProgress, listener),
     onState: (listener) => subscribe<DownloadStateEvent>(CHANNELS.downloadState, listener)
+  },
+  quarantine: {
+    list: () => ipcRenderer.invoke(CHANNELS.quarantineList),
+    restore: (id) => ipcRenderer.invoke(CHANNELS.quarantineRestore, { id }),
+    discard: (id) => ipcRenderer.invoke(CHANNELS.quarantineDiscard, { id })
   }
 }
 
