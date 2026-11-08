@@ -1,0 +1,26 @@
+# V0.3 按工程规范 §5.3 出免安装候选包（--dir）；NSIS 安装包留到 V0.6
+appId: com.ivai.kithoard
+productName: Kithoard
+directories:
+  output: dist
+
+# 直接用 node_modules 里已下载的 Electron，避免打包阶段再走网络下载
+electronDist: node_modules/electron/dist
+
+# 渲染层已由 electron-vite 打进 out/；node_modules 只随包携带生产依赖
+files:
+  - out/**/*
+  - package.json
+
+asar: true
+# better-sqlite3 是原生模块，留在 asar 外才能被 Electron 加载
+asarUnpack:
+  - node_modules/better-sqlite3/**/*
+# better-sqlite3 v13 自带 prebuildify 预编译二进制，无需本机 Visual Studio；
+# 强制 rebuild 反而会因缺少编译环境失败
+npmRebuild: false
+
+win:
+  target:
+    - dir
+  artifactName: Kithoard-${version}-x64.${ext}
