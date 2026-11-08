@@ -41,6 +41,13 @@ const api: KithoardApi = {
     list: () => ipcRenderer.invoke(CHANNELS.quarantineList),
     restore: (id) => ipcRenderer.invoke(CHANNELS.quarantineRestore, { id }),
     discard: (id) => ipcRenderer.invoke(CHANNELS.quarantineDiscard, { id })
+  },
+  library: {
+    // 空查询由主进程补默认值，渲染层不需要重复写 pageSize 常量
+    list: (query) => ipcRenderer.invoke(CHANNELS.libraryList, query ?? {}),
+    open: (id) => ipcRenderer.invoke(CHANNELS.libraryOpen, { id }),
+    reveal: (id) => ipcRenderer.invoke(CHANNELS.libraryReveal, { id }),
+    copyPath: (id) => ipcRenderer.invoke(CHANNELS.libraryCopyPath, { id })
   }
 }
 

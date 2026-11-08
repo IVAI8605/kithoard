@@ -153,6 +153,39 @@ export interface RecoveryReport {
   quarantined: number
 }
 
+/** 本地素材在磁盘上的三种状态；quarantined 只出现在隔离区，本地素材页不展示 */
+export type LocalFileStatus = 'present' | 'missing' | 'quarantined'
+
+/** 本地素材页的一条记录；标题与类型来自关联素材，素材被清空后为 null */
+export interface LocalFileItem {
+  id: number
+  assetId: number | null
+  downloadId: string | null
+  title: string | null
+  type: AssetType | null
+  fileName: string
+  path: string
+  status: LocalFileStatus
+  sizeBytes: number | null
+  createdAt: number
+  updatedAt: number
+}
+
+/** `library:list` 入参；type 不传表示全部类型，keyword 为空表示不筛选 */
+export interface LocalFileQuery {
+  type?: AssetType
+  keyword?: string
+  page?: number
+  pageSize?: number
+}
+
+export interface LocalFilePage {
+  items: LocalFileItem[]
+  total: number
+  page: number
+  pageSize: number
+}
+
 /** 隔离区条目；reason 是给人看的判定原因，不是错误码 */
 export interface QuarantineItem {
   id: number

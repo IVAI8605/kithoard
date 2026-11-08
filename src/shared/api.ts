@@ -3,6 +3,8 @@ import type {
   DownloadProgressEvent,
   DownloadStateEvent,
   DownloadTask,
+  LocalFilePage,
+  LocalFileQuery,
   QuarantineItem,
   RecoveryReport,
   SearchPageResult,
@@ -59,6 +61,16 @@ export interface KithoardApi {
     list: () => Promise<ApiResult<QuarantineItem[]>>
     restore: (id: number) => Promise<ApiResult<{ ok: true }>>
     discard: (id: number) => Promise<ApiResult<{ ok: true }>>
+  }
+  /**
+   * V0.2 本地素材：只读列表与系统级打开动作。
+   * 改名/移动/删除等多选操作排在本批之后，避免一次把文件系统写能力全开。
+   */
+  library: {
+    list: (query?: LocalFileQuery) => Promise<ApiResult<LocalFilePage>>
+    open: (id: number) => Promise<ApiResult<{ ok: true }>>
+    reveal: (id: number) => Promise<ApiResult<{ ok: true }>>
+    copyPath: (id: number) => Promise<ApiResult<{ ok: true }>>
   }
 }
 

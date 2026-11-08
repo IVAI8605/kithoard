@@ -1123,6 +1123,11 @@ input {
   border-left: 3px solid var(--danger);
 }
 
+/* 本地素材页：文件被手工删除后保留记录，用左侧色条提示「这条已经不可用」 */
+.dl-item--missing {
+  border-left: 3px solid var(--danger);
+}
+
 .dl-item__handle {
   flex: none;
   width: 16px;

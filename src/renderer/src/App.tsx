@@ -4,10 +4,11 @@ import SettingsDialog from './components/SettingsDialog'
 import StartupRecoveryDialog from './components/StartupRecoveryDialog'
 import DetailView from './pages/DetailView'
 import DownloadsPage from './pages/DownloadsPage'
+import LibraryPage from './pages/LibraryPage'
 import SearchPage from './pages/SearchPage'
 import { useAppStore } from './store'
 
-type NavKey = 'search' | 'downloads'
+type NavKey = 'search' | 'downloads' | 'library'
 /** 详情页记住从哪来的，返回时不会把用户莫名送回首页 */
 type View = { name: NavKey } | { name: 'detail'; assetId: number; from: NavKey }
 
@@ -70,6 +71,7 @@ export default function App() {
             onOpenDetail={(assetId) => setView({ name: 'detail', assetId, from: 'downloads' })}
           />
         ) : null}
+        {view.name === 'library' ? <LibraryPage /> : null}
         {view.name === 'detail' ? (
           <DetailView assetId={view.assetId} onBack={() => setView({ name: view.from })} />
         ) : null}

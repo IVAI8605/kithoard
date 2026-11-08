@@ -27,7 +27,12 @@ export const CHANNELS = {
   // V0.2 隔离区：判定有风险的文件只移入不删除，放弃时移入系统回收站
   quarantineList: 'quarantine:list',
   quarantineRestore: 'quarantine:restore',
-  quarantineDiscard: 'quarantine:discard'
+  quarantineDiscard: 'quarantine:discard',
+  // V0.2 本地素材：列表只读 local_files，打开动作统一交系统处理，应用内不改文件
+  libraryList: 'library:list',
+  libraryOpen: 'library:open',
+  libraryReveal: 'library:reveal',
+  libraryCopyPath: 'library:copyPath'
 } as const
 
 /** 渲染层可读的设置键白名单；不在表内的键一律拒绝 */
