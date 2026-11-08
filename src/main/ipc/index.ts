@@ -8,6 +8,7 @@ import { createSourceRegistry } from '../sources'
 import type { SourceRegistry } from '../sources/registry'
 import { createClipboardService } from '../services/clipboard'
 import { createDetailService } from '../services/detail'
+import { createDownloadService } from '../services/download'
 import { createRecentService } from '../services/recent'
 import { createSearchService } from '../services/search'
 import { createSettingsService } from '../services/settings'
@@ -47,6 +48,7 @@ export function registerIpc(deps: { userDataDir: string }): void {
   const recent = createRecentService({ registry, thumbsDir: path.join(cacheRoot, 'thumbs') })
   const settings = createSettingsService({ registry })
   const clipboard = createClipboardService()
+  const download = createDownloadService()
 
   ipcMain.handle(
     CHANNELS.sourceList,
@@ -75,5 +77,17 @@ export function registerIpc(deps: { userDataDir: string }): void {
   ipcMain.handle(
     CHANNELS.copyText,
     wrap((arg) => clipboard.writeExternalLink(arg))
+  )
+  ipcMain.handle(
+    CHANNELS.downloadEnqueue,
+    wrap((arg) => download.enqueue(arg))
+  )
+  ipcMain.handle(
+    CHANNELS.downloadPause,
+    wrap((arg) => download.pause(arg))
+  )
+  ipcMain.handle(
+    CHANNELS.downloadCancel,
+    wrap((arg) => download.cancel(arg))
   )
 }

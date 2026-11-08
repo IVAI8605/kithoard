@@ -88,3 +88,14 @@ export interface SourceInfo {
   hasApiKey: boolean
   rateLimitRemaining: number | null
 }
+
+/** 下载任务状态，与版本规划 §5.3 的状态机一一对应 */
+export type DownloadState =
+  | 'queued'
+  | 'downloading'
+  | 'paused'
+  | 'verifying'
+  | 'completed'
+  | 'failed'
+  | 'canceled'
+  | 'quarantined'

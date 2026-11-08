@@ -27,6 +27,12 @@ export interface KithoardApi {
   clipboard: {
     writeText: (text: string) => Promise<ApiResult<{ ok: true }>>
   }
+  /** V0.2 下载队列；引擎落地前先提供入队与两种终止操作 */
+  download: {
+    enqueue: (assetIds: number[]) => Promise<ApiResult<{ taskIds: string[] }>>
+    pause: (taskId: string) => Promise<ApiResult<{ ok: true }>>
+    cancel: (taskId: string) => Promise<ApiResult<{ ok: true }>>
+  }
 }
 
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: AppError }

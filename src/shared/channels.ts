@@ -8,7 +8,11 @@ export const CHANNELS = {
   settingsGet: 'settings:get',
   settingsSet: 'settings:set',
   // 规划表里没有复制通道；V0.1 需要「复制来源链接」，用主进程剪贴板避免依赖页面安全上下文
-  copyText: 'app:copyText'
+  copyText: 'app:copyText',
+  // V0.2 下载队列：通道名按 §6.2 的 domain:action 约定，引擎落地前先只提供队列操作
+  downloadEnqueue: 'download:enqueue',
+  downloadPause: 'download:pause',
+  downloadCancel: 'download:cancel'
 } as const
 
 /** 渲染层可读的设置键白名单；不在表内的键一律拒绝 */

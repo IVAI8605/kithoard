@@ -20,6 +20,11 @@ const api: KithoardApi = {
   },
   clipboard: {
     writeText: (text) => ipcRenderer.invoke(CHANNELS.copyText, { text })
+  },
+  download: {
+    enqueue: (assetIds) => ipcRenderer.invoke(CHANNELS.downloadEnqueue, { assetIds }),
+    pause: (taskId) => ipcRenderer.invoke(CHANNELS.downloadPause, { taskId }),
+    cancel: (taskId) => ipcRenderer.invoke(CHANNELS.downloadCancel, { taskId })
   }
 }
 

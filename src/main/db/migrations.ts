@@ -44,11 +44,60 @@ CREATE TABLE settings (
 );
 `
 
+/**
+ * V0.2 第一批只加下达/本地素材两张表：
+ * - `target_path` 加 UNIQUE，靠数据库兜住「同名入队竞态」，不靠调用方自觉；
+ * - 外键一律 SET NULL，清下载历史时不能把已下载的文件记录一起带走（§5.2）。
+ * `received_bytes` 只是缓存，启动恢复始终以磁盘 `.part` 大小为准（§5.4）。
+ */
+const SCHEMA_V2 = `
+CREATE TABLE downloads (
+  id TEXT PRIMARY KEY,
+  asset_id INTEGER REFERENCES assets(id) ON DELETE SET NULL,
+  state TEXT NOT NULL CHECK (
+    state IN ('queued', 'downloading', 'paused', 'verifying', 'completed', 'failed', 'canceled', 'quarantined')
+  ),
+  target_path TEXT NOT NULL UNIQUE,
+  url TEXT NOT NULL,
+  total_bytes INTEGER,
+  received_bytes INTEGER NOT NULL DEFAULT 0,
+  etag TEXT,
+  last_modified TEXT,
+  retry_count INTEGER NOT NULL DEFAULT 0,
+  error_code TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX idx_downloads_state ON downloads(state);
+CREATE INDEX idx_downloads_order ON downloads(sort_order, created_at);
+
+CREATE TABLE local_files (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  asset_id INTEGER REFERENCES assets(id) ON DELETE SET NULL,
+  download_id TEXT REFERENCES downloads(id) ON DELETE SET NULL,
+  path TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  status TEXT NOT NULL CHECK (status IN ('present', 'missing', 'quarantined')),
+  size_bytes INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX idx_local_files_status ON local_files(status);
+`
+
 export const MIGRATIONS: Migration[] = [
   {
     version: 1,
     up: (db) => {
       db.exec(SCHEMA_V1)
+    }
+  },
+  {
+    version: 2,
+    up: (db) => {
+      db.exec(SCHEMA_V2)
     }
   }
 ]
