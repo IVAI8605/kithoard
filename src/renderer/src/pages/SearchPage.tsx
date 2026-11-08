@@ -39,10 +39,12 @@ export default function SearchPage({ onOpenDetail }: Props) {
   const recent = useAppStore((state) => state.recent)
   const recentLoaded = useAppStore((state) => state.recentLoaded)
   const loadRecent = useAppStore((state) => state.loadRecent)
+  const downloadAssets = useAppStore((state) => state.downloadAssets)
 
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [preview, setPreview] = useState<SearchResultItem | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
 
   // 首页一进来（含刚启动）就把本地记录读出来，用户不必先搜一次才能找回上次看的素材
   useEffect(() => {
@@ -67,6 +69,43 @@ export default function SearchPage({ onOpenDetail }: Props) {
     }
     const response = await window.api.clipboard.writeText(item.pageUrl)
     setToast(response.ok ? '来源链接已复制' : response.error.message)
+  }
+
+  const toggleSelect = (item: SearchResultItem): void => {
+    setSelectedIds((prev) =>
+      prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]
+    )
+  }
+
+  const enqueue = async (ids: number[]): Promise<void> => {
+    const error = await downloadAssets(ids)
+    if (!error) {
+      setSelectedIds([])
+      setToast(`已加入下载队列（${ids.length} 个）`)
+      return
+    }
+    // 主进程用 detail='confirmLarge' 表示「大文件需确认」，不新增错误码（§6.3 错误码保持稳定）
+    if (error.detail === 'confirmLarge') {
+      const confirmed = window.confirm('其中有超过 200 MB 的文件，确定继续下载吗？')
+      if (!confirmed) return
+      const retryError = await downloadAssets(ids, true)
+      if (retryError) {
+        setToast(retryError.message)
+        return
+      }
+      setSelectedIds([])
+      setToast(`已加入下载队列（${ids.length} 个）`)
+      return
+    }
+    setToast(error.message)
+  }
+
+  const handleBatchDownload = (): void => {
+    if (selectedIds.length === 0) return
+    // 批量入队一次性确认：避免用户勾了十几个之后才在下载页发现选错
+    const confirmed = window.confirm(`确认下载选中的 ${selectedIds.length} 个素材吗？`)
+    if (!confirmed) return
+    void enqueue(selectedIds)
   }
 
   return (
@@ -138,6 +177,24 @@ export default function SearchPage({ onOpenDetail }: Props) {
         ))}
       </div>
 
+      {selectedIds.length > 0 ? (
+        <div className="bulkbar" role="region" aria-label="批量操作">
+          <span>已选 {selectedIds.length} 个素材</span>
+          <div className="bulkbar__actions">
+            <button type="button" className="btn btn--small" onClick={() => setSelectedIds([])}>
+              取消选择
+            </button>
+            <button
+              type="button"
+              className="btn btn--small btn--primary"
+              onClick={handleBatchDownload}
+            >
+              下载所选
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="result-head">
         {status === 'ready' && result ? (
           <p className="result-meta">
@@ -174,6 +231,9 @@ export default function SearchPage({ onOpenDetail }: Props) {
               onPreview={setPreview}
               onOpen={onOpenDetail}
               onMenu={(target, point) => setMenu({ item: target, ...point })}
+              selected={selectedIds.includes(item.id)}
+              onToggleSelect={toggleSelect}
+              onDownload={(target) => void enqueue([target.id])}
             />
           ))}
         </div>
@@ -238,6 +298,9 @@ export default function SearchPage({ onOpenDetail }: Props) {
                   onPreview={setPreview}
                   onOpen={onOpenDetail}
                   onMenu={(target, point) => setMenu({ item: target, ...point })}
+                  selected={selectedIds.includes(item.id)}
+                  onToggleSelect={toggleSelect}
+                  onDownload={(target) => void enqueue([target.id])}
                 />
               ))}
             </div>

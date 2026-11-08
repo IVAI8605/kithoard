@@ -62,6 +62,8 @@ export interface DownloadService {
   resume(raw: unknown): { ok: true }
   retry(raw: unknown): { ok: true }
   reorder(raw: unknown): { ok: true }
+  /** 用户在启动恢复弹窗确认后，才让队列真正跑起来（§5.4：queued 不自动开始） */
+  startQueue(): { ok: true }
   list(): DownloadTask[]
 }
 
@@ -186,6 +188,11 @@ export function createDownloadService(deps: {
         // 未参与排序的任务按原相对顺序排到后面，避免出现两组同名次
         tail.forEach((id, index) => update.run(orderedIds.length + index + 1, now, id))
       })()
+      return { ok: true }
+    },
+
+    startQueue() {
+      deps.engine.pump()
       return { ok: true }
     },
 

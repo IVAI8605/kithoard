@@ -1,6 +1,11 @@
 import { create } from 'zustand'
 import type { AppError } from '@shared/errors'
 import type {
+  DownloadProgressEvent,
+  DownloadStateEvent,
+  DownloadTask,
+  QuarantineItem,
+  RecoveryReport,
   SearchPageResult,
   SearchResultItem,
   SearchableType,
@@ -26,6 +31,12 @@ interface AppState {
   /** 本地已落库的最近记录；与搜索结果分开存，避免互相覆盖 */
   recent: SearchResultItem[]
   recentLoaded: boolean
+  /** V0.2 下载队列：任务、隔离区、启动恢复报告三份数据分开存 */
+  downloads: DownloadTask[]
+  downloadsLoaded: boolean
+  quarantineItems: QuarantineItem[]
+  quarantineLoaded: boolean
+  recovery: RecoveryReport | null
   loadSources: () => Promise<void>
   loadRecent: () => Promise<void>
   setKeyword: (value: string) => void
@@ -34,6 +45,20 @@ interface AppState {
   runSearch: (nextPage?: number) => Promise<void>
   saveApiKey: (key: string) => Promise<AppError | null>
   toggleSource: (id: string, enabled: boolean) => Promise<AppError | null>
+  setRecovery: (report: RecoveryReport) => void
+  loadDownloads: () => Promise<void>
+  loadQuarantine: () => Promise<void>
+  applyProgress: (event: DownloadProgressEvent) => void
+  applyState: (event: DownloadStateEvent) => void
+  downloadAssets: (assetIds: number[], confirmLarge?: boolean) => Promise<AppError | null>
+  pauseTask: (taskId: string) => Promise<AppError | null>
+  cancelTask: (taskId: string) => Promise<AppError | null>
+  resumeTask: (taskId: string) => Promise<AppError | null>
+  retryTask: (taskId: string, confirm?: boolean) => Promise<AppError | null>
+  reorderTasks: (orderedIds: string[]) => Promise<AppError | null>
+  startQueue: () => Promise<AppError | null>
+  restoreQuarantine: (id: number) => Promise<AppError | null>
+  discardQuarantine: (id: number) => Promise<AppError | null>
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -51,6 +76,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   error: null,
   recent: [],
   recentLoaded: false,
+  downloads: [],
+  downloadsLoaded: false,
+  quarantineItems: [],
+  quarantineLoaded: false,
+  recovery: null,
 
   loadSources: async () => {
     const [sourceResult, storageResult] = await Promise.all([
@@ -117,5 +147,99 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!result.ok) return result.error
     await get().loadSources()
     return null
+  },
+
+  setRecovery: (report) => set({ recovery: report }),
+
+  // 队列状态只从主进程读：渲染层不做乐观更新，避免界面显示「已暂停」但库里还在下载
+  loadDownloads: async () => {
+    const result = await window.api.download.list()
+    set({ downloadsLoaded: true, downloads: result.ok ? result.data : [] })
+  },
+
+  loadQuarantine: async () => {
+    const result = await window.api.quarantine.list()
+    set({ quarantineLoaded: true, quarantineItems: result.ok ? result.data : [] })
+  },
+
+  applyProgress: (event) => {
+    set((state) => ({
+      downloads: state.downloads.map((task) =>
+        task.id === event.taskId
+          ? { ...task, receivedBytes: event.receivedBytes, totalBytes: event.totalBytes }
+          : task
+      )
+    }))
+  },
+
+  applyState: (event) => {
+    set((state) => ({
+      downloads: state.downloads.map((task) =>
+        task.id === event.taskId
+          ? {
+              ...task,
+              state: event.state,
+              receivedBytes: event.receivedBytes,
+              totalBytes: event.totalBytes,
+              errorCode: event.errorCode
+            }
+          : task
+      )
+    }))
+    // 终态事件不携带 retry_count / updated_at，重拉一次补齐；事件频率低，不必做增量猜
+    if (event.state === 'completed' || event.state === 'canceled' || event.state === 'failed') {
+      void get().loadDownloads()
+    }
+  },
+
+  downloadAssets: async (assetIds, confirmLarge) => {
+    const result = await window.api.download.enqueue(
+      assetIds,
+      confirmLarge ? { confirmLarge: true } : undefined
+    )
+    if (!result.ok) return result.error
+    await get().loadDownloads()
+    return null
+  },
+
+  pauseTask: (taskId) => runTaskAction(() => window.api.download.pause(taskId)),
+  cancelTask: (taskId) => runTaskAction(() => window.api.download.cancel(taskId)),
+  resumeTask: (taskId) => runTaskAction(() => window.api.download.resume(taskId)),
+  retryTask: (taskId, confirm) => runTaskAction(() => window.api.download.retry(taskId, confirm)),
+
+  reorderTasks: async (orderedIds) => {
+    const result = await window.api.download.reorder(orderedIds)
+    if (!result.ok) return result.error
+    await get().loadDownloads()
+    return null
+  },
+
+  startQueue: async () => {
+    const result = await window.api.download.startQueue()
+    if (!result.ok) return result.error
+    await get().loadDownloads()
+    return null
+  },
+
+  restoreQuarantine: async (id) => {
+    const result = await window.api.quarantine.restore(id)
+    if (!result.ok) return result.error
+    await Promise.all([get().loadQuarantine(), get().loadDownloads()])
+    return null
+  },
+
+  discardQuarantine: async (id) => {
+    const result = await window.api.quarantine.discard(id)
+    if (!result.ok) return result.error
+    await Promise.all([get().loadQuarantine(), get().loadDownloads()])
+    return null
   }
 }))
+
+/** 队列操作的共同收尾：失败时把错误交给页面提示，成功则静默（状态会由事件推回来） */
+async function runTaskAction(
+  action: () => Promise<{ ok: true; data: { ok: true } } | { ok: false; error: AppError }>
+): Promise<AppError | null> {
+  const result = await action()
+  return result.ok ? null : result.error
+}

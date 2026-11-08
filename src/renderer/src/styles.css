@@ -993,3 +993,280 @@ input {
     transition: none !important;
   }
 }
+
+/* ---------- V0.2 下载管理 ---------- */
+
+.card {
+  /* 复选框要浮在封面上，卡片本身成为定位上下文 */
+  position: relative;
+}
+
+.card--selected {
+  border-color: var(--accent);
+}
+
+.card__select {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.card__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.card__download {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.card__download:hover {
+  color: var(--accent-hover);
+}
+
+.bulkbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.bulkbar__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.dl-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.dl-summary__warn {
+  color: var(--danger);
+}
+
+.dl-section {
+  margin-top: 26px;
+}
+
+.dl-section__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.dl-section__head h2 {
+  margin: 0;
+  color: var(--text-dim);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.dl-section__note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.dl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dl-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+}
+
+.dl-item--drag {
+  opacity: 0.5;
+}
+
+.dl-item--finished {
+  background: transparent;
+}
+
+.dl-item--risk {
+  border-left: 3px solid var(--danger);
+}
+
+.dl-item__handle {
+  flex: none;
+  width: 16px;
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: -2px;
+  cursor: grab;
+  user-select: none;
+}
+
+.dl-item--finished .dl-item__handle,
+.dl-item--risk .dl-item__handle {
+  cursor: default;
+}
+
+.dl-item__main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dl-item__name {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: 14.5px;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.dl-item__name:disabled {
+  color: var(--text);
+  cursor: default;
+}
+
+.dl-item__sub {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.dl-item__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.dl-item__error {
+  color: var(--danger);
+}
+
+.dl-item__actions {
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
+
+.btn--small {
+  height: 30px;
+  padding: 0 12px;
+  font-size: 12.5px;
+}
+
+.dl-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.dl-bar__fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 300ms ease;
+}
+
+.dl-bar__fill--queued {
+  background: var(--line-strong);
+}
+
+.dl-bar__fill--paused {
+  background: var(--muted);
+}
+
+.dl-bar__fill--done {
+  background: var(--ok);
+}
+
+.dl-bar__fill--failed,
+.dl-bar__fill--risk {
+  background: var(--danger);
+}
+
+.dl-state {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+}
+
+.dl-state--queued {
+  background: var(--surface-2);
+  color: var(--text-dim);
+}
+
+.dl-state--active {
+  background: rgba(208, 138, 95, 0.18);
+  color: var(--accent-hover);
+}
+
+.dl-state--paused {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.dl-state--done {
+  background: rgba(134, 169, 143, 0.16);
+  color: var(--ok);
+}
+
+.dl-state--failed,
+.dl-state--risk {
+  background: rgba(217, 132, 122, 0.16);
+  color: var(--danger);
+}
+
+@media (max-width: 860px) {
+  .dl-item {
+    flex-wrap: wrap;
+  }
+
+  .dl-item__actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

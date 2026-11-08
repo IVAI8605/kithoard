@@ -4,6 +4,7 @@ import type {
   DownloadStateEvent,
   DownloadTask,
   QuarantineItem,
+  RecoveryReport,
   SearchPageResult,
   SearchQuery,
   SearchResultItem,
@@ -33,7 +34,15 @@ export interface KithoardApi {
   }
   /** V0.2 下载队列：队列操作与两类实时事件 */
   download: {
-    enqueue: (assetIds: number[]) => Promise<ApiResult<{ taskIds: string[] }>>
+    /** confirmLarge 用于「超过 200 MB 需二次确认」的场景，普通入队不用传 */
+    enqueue: (
+      assetIds: number[],
+      options?: { confirmLarge?: boolean }
+    ) => Promise<ApiResult<{ taskIds: string[] }>>
+    /** 取回启动恢复报告；主进程启动时已执行过，不会重复扫描 */
+    recover: () => Promise<ApiResult<RecoveryReport>>
+    /** 开始/继续处理排队任务；用户没在恢复弹窗点确认前不应调用 */
+    startQueue: () => Promise<ApiResult<{ ok: true }>>
     pause: (taskId: string) => Promise<ApiResult<{ ok: true }>>
     cancel: (taskId: string) => Promise<ApiResult<{ ok: true }>>
     resume: (taskId: string) => Promise<ApiResult<{ ok: true }>>

@@ -11,13 +11,35 @@ interface Props {
   onPreview: (item: SearchResultItem) => void
   onOpen: (assetId: number) => void
   onMenu: (item: SearchResultItem, point: Point) => void
+  /** 多选与快速下载由页面决定是否提供，卡片本身不关心队列逻辑 */
+  selected?: boolean
+  onToggleSelect?: (item: SearchResultItem) => void
+  onDownload?: (item: SearchResultItem) => void
 }
 
-export default function AssetCard({ item, onPreview, onOpen, onMenu }: Props) {
+export default function AssetCard({
+  item,
+  onPreview,
+  onOpen,
+  onMenu,
+  selected = false,
+  onToggleSelect,
+  onDownload
+}: Props) {
   const src = thumbSrc(item.thumbName)
 
   return (
-    <article className="card">
+    <article className={selected ? 'card card--selected' : 'card'}>
+      {onToggleSelect ? (
+        <input
+          type="checkbox"
+          className="card__select"
+          checked={selected}
+          onChange={() => onToggleSelect(item)}
+          aria-label={`选择 ${item.title}`}
+        />
+      ) : null}
+
       <button
         type="button"
         className="card__thumb"
@@ -49,17 +71,29 @@ export default function AssetCard({ item, onPreview, onOpen, onMenu }: Props) {
           <button type="button" className="card__source" onClick={() => onOpen(item.id)}>
             {typeLabel(item.type)}来自 {item.sourceName}
           </button>
-          <button
-            type="button"
-            className="card__more"
-            onClick={(event) => {
-              const rect = event.currentTarget.getBoundingClientRect()
-              onMenu(item, { x: rect.right, y: rect.bottom })
-            }}
-            aria-label={`更多操作：${item.title}`}
-          >
-            更多
-          </button>
+          <span className="card__actions">
+            {onDownload ? (
+              <button
+                type="button"
+                className="card__download"
+                onClick={() => onDownload(item)}
+                aria-label={`下载 ${item.title}`}
+              >
+                下载
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="card__more"
+              onClick={(event) => {
+                const rect = event.currentTarget.getBoundingClientRect()
+                onMenu(item, { x: rect.right, y: rect.bottom })
+              }}
+              aria-label={`更多操作：${item.title}`}
+            >
+              更多
+            </button>
+          </span>
         </div>
       </div>
     </article>

@@ -17,6 +17,10 @@ export const CHANNELS = {
   downloadRetry: 'download:retry',
   downloadReorder: 'download:reorder',
   downloadList: 'download:list',
+  // 启动恢复由主进程在注册 IPC 时执行一次，这里只把报告交给界面（§5.4）
+  downloadRecover: 'download:recover',
+  // 用户在恢复弹窗点「开始下载」时才启动队列；queued 不自动开始是硬规则
+  downloadStartQueue: 'download:startQueue',
   // 事件通道（主进程 → 渲染层），不进 invoke 白名单
   downloadProgress: 'download:progress',
   downloadState: 'download:state',

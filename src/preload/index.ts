@@ -23,7 +23,11 @@ const api: KithoardApi = {
     writeText: (text) => ipcRenderer.invoke(CHANNELS.copyText, { text })
   },
   download: {
-    enqueue: (assetIds) => ipcRenderer.invoke(CHANNELS.downloadEnqueue, { assetIds }),
+    enqueue: (assetIds, options) =>
+      ipcRenderer.invoke(CHANNELS.downloadEnqueue, { assetIds, ...options }),
+    // 恢复报告由主进程启动时算好，这里只是取回，不会触发二次扫描
+    recover: () => ipcRenderer.invoke(CHANNELS.downloadRecover),
+    startQueue: () => ipcRenderer.invoke(CHANNELS.downloadStartQueue),
     pause: (taskId) => ipcRenderer.invoke(CHANNELS.downloadPause, { taskId }),
     cancel: (taskId) => ipcRenderer.invoke(CHANNELS.downloadCancel, { taskId }),
     resume: (taskId) => ipcRenderer.invoke(CHANNELS.downloadResume, { taskId }),

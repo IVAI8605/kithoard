@@ -11,6 +11,7 @@ import { createClipboardService } from '../services/clipboard'
 import { createDetailService } from '../services/detail'
 import { createDownloadService } from '../services/download'
 import { createQuarantineService } from '../services/quarantine'
+import { runStartupRecovery } from '../services/recovery'
 import { createRecentService } from '../services/recent'
 import { createSearchService } from '../services/search'
 import { createSettingsService } from '../services/settings'
@@ -62,6 +63,9 @@ export function registerIpc(deps: { userDataDir: string }): { shutdown: () => vo
   })
   const download = createDownloadService({ engine, notify: emit })
   const quarantine = createQuarantineService({ notify: emit })
+
+  // 启动即对齐磁盘（§5.4）：窗口还没建，事件无人接收也没关系，界面随后 list() 拿到的就是校正后的状态
+  const recovery = runStartupRecovery()
 
   ipcMain.handle(
     CHANNELS.sourceList,
@@ -118,6 +122,14 @@ export function registerIpc(deps: { userDataDir: string }): { shutdown: () => vo
   ipcMain.handle(
     CHANNELS.downloadList,
     wrap(() => download.list())
+  )
+  ipcMain.handle(
+    CHANNELS.downloadRecover,
+    wrap(() => recovery)
+  )
+  ipcMain.handle(
+    CHANNELS.downloadStartQueue,
+    wrap(() => download.startQueue())
   )
   ipcMain.handle(
     CHANNELS.quarantineList,

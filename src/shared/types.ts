@@ -134,6 +134,25 @@ export interface DownloadStateEvent {
   errorCode: string | null
 }
 
+/**
+ * 启动恢复报告（§5.4）。
+ * 界面据此决定是否弹「继续上次的队列」，主进程只负责把库状态与磁盘对齐。
+ */
+export interface RecoveryReport {
+  /** 本次扫描的未终态任务数 */
+  scanned: number
+  /** 状态或字节被按磁盘校正的条数 */
+  corrected: number
+  /** 补登 local_files 的条数（rename 后崩溃） */
+  repaired: number
+  /** 被校正为 failed 的条数 */
+  failed: number
+  /** 仍在排队、等用户决定是否开始的任务数 */
+  pendingQueued: number
+  /** 隔离区里仍有文件的条数 */
+  quarantined: number
+}
+
 /** 隔离区条目；reason 是给人看的判定原因，不是错误码 */
 export interface QuarantineItem {
   id: number
