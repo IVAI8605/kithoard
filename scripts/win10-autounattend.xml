@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  V1.0 干净 Windows 10 虚拟机的无人值守安装应答（准备稿，尚未实跑）
+
+  用法：本文件必须叫 autounattend.xml，并放在 Windows 安装程序能读到的位置——
+        最省事的是做成一张几十 MB 的小 ISO，和 Win10 安装 ISO 一起挂到飞牛虚拟机；
+        也可以塞进安装 ISO 根目录。安装程序发现它就不会再弹「选地区 / 建账号」等问答。
+
+  为什么不进 Kithoard 安装包：它只用来「搭一次干净环境」，不是产品文件，
+        也不参与 npm run gate；改完由你自己挂到虚拟机光驱。
+
+  三处 CHANGE_ME 必须改：账号名、密码、ISO 里的版本名。
+        密码只在这台一次性虚拟机里用，别用真实密码，更别提交进 git 或贴进对话。
+
+  【硬警告】WillWipeDisk=true 会抹掉 0 号磁盘的全部内容。
+        只允许对「新建的、空的虚拟磁盘」使用；挂载前确认没挂错盘。
+        若虚拟机固件是传统 BIOS 而不是 UEFI，把 DiskConfiguration 换成注释里的单分区写法。
+
+  为什么两条远程通道都开：WinRM 与 OpenSSH 都能让开发机把验证脚本送进虚拟机，
+        但配置方式不同（见对话里的对比）。先都开好，你选一条用，另一条可在系统里关掉。
+
+  【UEFI 之外的备选分区写法，传统 BIOS 时替换 DiskConfiguration 整段】
+        <CreatePartitions>
+          <CreatePartition wcm:action="add"><Order>1</Order><Type>Primary</Type><Extend>true</Extend></CreatePartition>
+        </CreatePartitions>
+        <ModifyPartitions>
+          <ModifyPartition wcm:action="add"><Order>1</Order><PartitionID>1</PartitionID><Format>NTFS</Format><Letter>C</Letter><Active>true</Active></ModifyPartition>
+        </ModifyPartitions>
+        <ImageInstall><OSImage><InstallTo><DiskID>0</DiskID><PartitionID>1</PartitionID></InstallTo></OSImage></ImageInstall>
+-->
+<unattend xmlns="urn:schemas-microsoft-com:unattend"
+          xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+  <settings pass="windowsPE">
+    <component name="Microsoft-Windows-International-Core-WinPE"
+               processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35"
+               language="neutral" versionScope="nonSxS">
+      <SetupUILanguage><UILanguage>zh-CN</UILanguage></SetupUILanguage>
+      <InputLocale>0804:00000804</InputLocale>
+      <SystemLocale>zh-CN</SystemLocale>
+      <UILanguage>zh-CN</UILanguage>
+      <UserLocale>zh-CN</UserLocale>
+    </component>
+
+    <component name="Microsoft-Windows-Setup"
+               processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35"
+               language="neutral" versionScope="nonSxS">
+      <DiskConfiguration>
+        <Disk wcm:action="add">
+          <DiskID>0</DiskID>
+          <WillWipeDisk>true</WillWipeDisk>
+          <CreatePartitions>
+            <CreatePartition wcm:action="add"><Order>1</Order><Type>EFI</Type><Size>100</Size></CreatePartition>
+            <CreatePartition wcm:action="add"><Order>2</Order><Type>MSR</Type><Size>16</Size></CreatePartition>
+            <CreatePartition wcm:action="add"><Order>3</Order><Type>Primary</Type><Extend>true</Extend></CreatePartition>
+          </CreatePartitions>
+          <ModifyPartitions>
+            <ModifyPartition wcm:action="add"><Order>1</Order><PartitionID>1</PartitionID><Format>FAT32</Format><Label>System</Label></ModifyPartition>
+            <ModifyPartition wcm:action="add"><Order>2</Order><PartitionID>2</PartitionID></ModifyPartition>
+            <ModifyPartition wcm:action="add"><Order>3</Order><PartitionID>3</PartitionID><Format>NTFS</Format><Label>Windows</Label><Letter>C</Letter></ModifyPartition>
+          </ModifyPartitions>
+        </Disk>
+      </DiskConfiguration>
+      <ImageInstall>
+        <OSImage>
+          <!-- CHANGE_ME：用 dism /Get-WimInfo /WimFile:<ISO>\sources\install.wim 查实际名字；
+               中文版 ISO 常见「Windows 10 专业版」，英文版常见「Windows 10 Pro」 -->
+          <InstallFrom>
+            <MetaData wcm:action="add">
+              <Key>/IMAGE/NAME</Key>
+              <Value>Windows 10 Pro</Value>
+            </MetaData>
+          </InstallFrom>
+          <InstallTo><DiskID>0</DiskID><PartitionID>3</PartitionID></InstallTo>
+        </OSImage>
+      </ImageInstall>
+      <UserData>
+        <AcceptEula>true</AcceptEula>
+        <FullName>Kithoard V1</FullName>
+        <Organization>Kithoard</Organization>
+        <!-- 不内置产品密钥：用 ISO 自带版本装完再按自己的授权激活，避免把 Key 写进模板 -->
+      </UserData>
+    </component>
+  </settings>
+
+  <settings pass="oobeSystem">
+    <component name="Microsoft-Windows-Shell-Setup"
+               processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35"
+               language="neutral" versionScope="nonSxS">
+      <OOBE>
+        <HideEULAPage>true</HideEULAPage>
+        <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
+        <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
+        <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
+        <ProtectYourPC>3</ProtectYourPC>
+      </OOBE>
+      <UserAccounts>
+        <LocalAccounts>
+          <LocalAccount wcm:action="add">
+            <Name>CHANGE_ME_USER</Name>
+            <Group>Administrators</Group>
+            <Password><Value>CHANGE_ME_PASSWORD</Value><PlainText>true</PlainText></Password>
+          </LocalAccount>
+        </LocalAccounts>
+      </UserAccounts>
+      <!-- 首次自动登录一次，让 FirstLogonCommands 有机会把远程通道打开 -->
+      <AutoLogon>
+        <Username>CHANGE_ME_USER</Username>
+        <Enabled>true</Enabled>
+        <LogonCount>1</LogonCount>
+        <Password><Value>CHANGE_ME_PASSWORD</Value><PlainText>true</PlainText></Password>
+      </AutoLogon>
+      <TimeZone>China Standard Time</TimeZone>
+      <FirstLogonCommands>
+        <SynchronousCommand wcm:action="add">
+          <Order>1</Order>
+          <Description>开启 WinRM，供开发机远程执行验证脚本</Description>
+          <CommandLine>cmd /c winrm quickconfig -q</CommandLine>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <Order>2</Order>
+          <Description>安装并启动 OpenSSH 服务端，作为第二条远程通道</Description>
+          <CommandLine>powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0; Set-Service -Name sshd -StartupType Automatic; Start-Service sshd; New-NetFirewallRule -Name sshd -DisplayName OpenSSH-Server -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22&quot;</CommandLine>
+        </SynchronousCommand>
+      </FirstLogonCommands>
+    </component>
+  </settings>
+</unattend>
