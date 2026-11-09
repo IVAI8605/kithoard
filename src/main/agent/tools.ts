@@ -1,4 +1,5 @@
 import type {
+  AgentApprovalPreview,
   AgentRisk,
   AgentScope,
   AgentToolInfo,
@@ -38,6 +39,11 @@ export interface AgentTool {
   approval: boolean
   summary: string
   handler: (args: unknown) => Promise<unknown> | unknown
+  /**
+   * 高风险工具必须提供：主进程据此算影响预览，交给应用内审批框。
+   * agent 自己描述的影响不算数——它说什么就确认什么，等于没有确认。
+   */
+  preview?: (args: unknown) => Promise<AgentApprovalPreview> | AgentApprovalPreview
 }
 
 const MAX_BATCH = AGENT_LIMITS.batchMax
@@ -208,6 +214,82 @@ export function createAgentTools(deps: {
       approval: false,
       summary: '媒体处理任务状态、进度与产出路径',
       handler: () => services.media.list()
+    },
+    {
+      name: 'library_trash',
+      scope: 'destructive',
+      risk: 'R2',
+      approval: true,
+      summary: '把本地素材移入系统回收站（可还原），必须人工确认',
+      preview: async (args) => {
+        const ids = readIds(asRecord(args).ids, 'ids')
+        const plan = services.library.plan({ ids })
+        return {
+          action: '移入系统回收站',
+          count: plan.items.length,
+          paths: plan.items.map((item) => item.path),
+          totalBytes: plan.totalBytes,
+          reversible: true
+        }
+      },
+      handler: async (args) => {
+        const ids = readIds(asRecord(args).ids, 'ids')
+        return services.library.trash({ ids })
+      }
+    },
+    {
+      name: 'library_move',
+      scope: 'destructive',
+      risk: 'R2',
+      approval: true,
+      summary: '把本地素材移动到指定目录，必须人工确认（目录仍受白名单约束）',
+      preview: async (args) => {
+        const record = asRecord(args)
+        const ids = readIds(record.ids, 'ids')
+        if (typeof record.targetDir !== 'string' || !record.targetDir) {
+          throw makeError('E_INVALID_ARG', 'targetDir')
+        }
+        const plan = services.library.plan({ ids })
+        const dir = record.targetDir.replace(/[\\/]+$/, '')
+        return {
+          action: `移动到 ${dir}`,
+          count: plan.items.length,
+          // 预览里连「从哪到哪」都写出来，避免用户只看到「移动 3 个文件」
+          paths: plan.items.map((item) => {
+            const name = item.path.split(/[\\/]/).pop() ?? ''
+            return `${item.path} → ${dir}\\${name}`
+          }),
+          totalBytes: plan.totalBytes,
+          reversible: true
+        }
+      },
+      handler: async (args) => {
+        const record = asRecord(args)
+        const ids = readIds(record.ids, 'ids')
+        return services.library.move({ ids, targetDir: record.targetDir })
+      }
+    },
+    {
+      name: 'quarantine_restore',
+      scope: 'destructive',
+      risk: 'R2',
+      approval: true,
+      summary: '把隔离区文件恢复到原路径，必须人工确认；原位置被占用时不覆盖',
+      preview: (args) => {
+        const id = asRecord(args).id
+        if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0) {
+          throw makeError('E_INVALID_ARG', 'id')
+        }
+        const plan = services.quarantine.plan({ ids: [id] })
+        return {
+          action: '从隔离区恢复到原路径',
+          count: plan.items.length,
+          paths: plan.items.map((item) => item.path),
+          totalBytes: null,
+          reversible: true
+        }
+      },
+      handler: (args) => services.quarantine.restore(args)
     }
   ]
 

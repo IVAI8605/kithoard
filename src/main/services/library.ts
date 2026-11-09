@@ -43,6 +43,15 @@ export interface LibraryService {
   move(raw: unknown): { ok: true; failed: number[] }
   /** 删除走系统回收站，可还原；记录保留并标 missing，还原后下次列表自动恢复 */
   trash(raw: unknown): Promise<{ ok: true; failed: number[] }>
+  /**
+   * 只读影响预览：给 agent 的两阶段审批算「删哪几条、多大、在不在」。
+   * 单独一个方法而不是复用 list，是因为审批必须能覆盖已缺失的文件，
+   * 并且不能被分页截断——少算一条就等于让用户确认了看不见的内容。
+   */
+  plan(raw: unknown): {
+    items: { id: number; path: string; sizeBytes: number | null; exists: boolean }[]
+    totalBytes: number | null
+  }
   /** 让用户选一个移动目标目录；取消返回 null */
   pickDir(): Promise<{ path: string | null }>
 }
@@ -93,6 +102,25 @@ export function createLibraryService(): LibraryService {
       const items = rows.map((row) => reconcile(row))
 
       return { items, total, page: query.page, pageSize: query.pageSize }
+    },
+
+    plan(raw) {
+      const ids = readIds(raw)
+      const items = ids.map((id) => {
+        const row = readRowById(id)
+        const info = statFile(row.path)
+        return {
+          id: row.id,
+          path: row.path,
+          sizeBytes: info?.size ?? row.size_bytes ?? null,
+          exists: info !== null
+        }
+      })
+      // 任一体积未知就返回 null：审批框宁可显示「大小未知」，也不能把不知道当 0
+      const totalBytes = items.every((item) => typeof item.sizeBytes === 'number')
+        ? items.reduce((sum, item) => sum + (item.sizeBytes ?? 0), 0)
+        : null
+      return { items, totalBytes }
     },
 
     async open(raw) {

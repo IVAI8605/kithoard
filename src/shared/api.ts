@@ -28,6 +28,7 @@ import type {
 } from './types'
 import type { AppError } from './errors'
 import type {
+  AgentApprovalTicket,
   AgentAuditEntry,
   AgentClientRecord,
   AgentScope,
@@ -158,6 +159,9 @@ export interface KithoardApi {
     revokeAll: () => Promise<ApiResult<AgentStatus>>
     audit: (limit: number) => Promise<ApiResult<AgentAuditEntry[]>>
     auditPath: () => Promise<ApiResult<string>>
+    /** 两阶段审批：用户在应用内点允许或拒绝 */
+    decide: (approvalId: string, allow: boolean) => Promise<ApiResult<AgentStatus>>
+    onApproval: (listener: (ticket: AgentApprovalTicket) => void) => () => void
   }
 }
 

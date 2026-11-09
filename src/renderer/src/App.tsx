@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import AgentApprovalDialog from './components/AgentApprovalDialog'
 import Sidebar from './components/Sidebar'
 import SettingsDialog from './components/SettingsDialog'
 import StartupRecoveryDialog from './components/StartupRecoveryDialog'
@@ -121,6 +122,9 @@ export default function App() {
           }}
         />
       ) : null}
+
+      {/* Agent 高风险动作的确认框挂在根节点：无论用户当前在哪个页面都必须能看到 */}
+      <AgentApprovalDialog />
     </div>
   )
 }

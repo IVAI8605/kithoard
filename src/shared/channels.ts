@@ -79,7 +79,10 @@ export const CHANNELS = {
   agentRevoke: 'agent:revoke',
   agentRevokeAll: 'agent:revokeAll',
   agentAudit: 'agent:audit',
-  agentAuditPath: 'agent:auditPath'
+  agentAuditPath: 'agent:auditPath',
+  // 审批：decide 由界面调用；approval 是主进程推给界面的待确认事件
+  agentDecide: 'agent:decide',
+  agentApproval: 'agent:approval'
 } as const
 
 /** 渲染层可读的设置键白名单；不在表内的键一律拒绝 */

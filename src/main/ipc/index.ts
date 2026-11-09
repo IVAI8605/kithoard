@@ -93,7 +93,8 @@ export function registerIpc(deps: { userDataDir: string }): { shutdown: () => vo
   const agent: AgentGateway = createAgentGateway({
     services: { sources, search, detail, download, library, favorite, quarantine, media },
     appVersion: app.getVersion(),
-    userDataDir: deps.userDataDir
+    userDataDir: deps.userDataDir,
+    notify: emit
   })
   agent.sync()
 
@@ -352,6 +353,17 @@ export function registerIpc(deps: { userDataDir: string }): { shutdown: () => vo
   ipcMain.handle(
     CHANNELS.agentAuditPath,
     wrap(() => agent.auditPath())
+  )
+  ipcMain.handle(
+    CHANNELS.agentDecide,
+    wrap((arg) => {
+      const record = readRecord(arg)
+      const approvalId = record.approvalId
+      if (typeof approvalId !== 'string' || !approvalId) {
+        throw makeError('E_INVALID_ARG', 'approvalId')
+      }
+      return agent.decide(approvalId, record.allow === true)
+    })
   )
 
   return {

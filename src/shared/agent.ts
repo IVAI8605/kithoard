@@ -69,6 +69,30 @@ export interface AgentClientRecord {
   lastSeenAt: number | null
 }
 
+/**
+ * 高风险动作的影响预览：审批框要让人一眼看清「删几条、哪些路径、多大、能不能还原」，
+ * 所以这些字段由主进程算好，不让 agent 自己描述（否则等于让它替用户写确认书）。
+ */
+export interface AgentApprovalPreview {
+  /** 动作名，例如「移入系统回收站」 */
+  action: string
+  count: number
+  /** 完整路径清单；界面必须原样展示，不能只显示数量 */
+  paths: string[]
+  totalBytes: number | null
+  reversible: boolean
+}
+
+export interface AgentApprovalTicket {
+  id: string
+  tool: string
+  /** 与参数绑定的哈希：批了 3 条就只能执行这 3 条 */
+  argsHash: string
+  preview: AgentApprovalPreview
+  createdAt: number
+  expiresAt: number
+}
+
 /** 审计条目：写 JSONL，全量记录 agent 做过的每个动作 */
 export interface AgentAuditEntry {
   at: number
@@ -92,6 +116,8 @@ export interface AgentStatus {
   clients: AgentClientRecord[]
   /** 当前令牌授予的作用域；未生成令牌时为空数组 */
   scopes: AgentScope[]
+  /** 待审批动作：刷新页面后仍能取回，不依赖事件是否被接住 */
+  pendingApprovals: AgentApprovalTicket[]
   pipeName: string
   version: number
   limits: AgentLimits

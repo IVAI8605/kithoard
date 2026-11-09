@@ -6,6 +6,7 @@ import type {
   DownloadStateEvent,
   MediaProgressEvent
 } from '@shared/types'
+import type { AgentApprovalTicket } from '@shared/agent'
 import { CHANNELS } from '@shared/channels'
 
 // 只暴露白名单方法；渲染层拿不到 ipcRenderer 本身，也就无法自己拼通道
@@ -96,7 +97,10 @@ const api: KithoardApi = {
     revoke: (clientId) => ipcRenderer.invoke(CHANNELS.agentRevoke, { clientId }),
     revokeAll: () => ipcRenderer.invoke(CHANNELS.agentRevokeAll),
     audit: (limit) => ipcRenderer.invoke(CHANNELS.agentAudit, { limit }),
-    auditPath: () => ipcRenderer.invoke(CHANNELS.agentAuditPath)
+    auditPath: () => ipcRenderer.invoke(CHANNELS.agentAuditPath),
+    decide: (approvalId, allow) =>
+      ipcRenderer.invoke(CHANNELS.agentDecide, { approvalId, allow }),
+    onApproval: (listener) => subscribe<AgentApprovalTicket>(CHANNELS.agentApproval, listener)
   }
 }
 

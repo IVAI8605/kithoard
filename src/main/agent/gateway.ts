@@ -1,5 +1,6 @@
 import net from 'node:net'
 import type {
+  AgentApprovalTicket,
   AgentAuditEntry,
   AgentClientRecord,
   AgentRequest,
@@ -11,10 +12,12 @@ import {
   AGENT_PIPE_NAME,
   AGENT_PROTOCOL_VERSION
 } from '@shared/agent'
+import { CHANNELS } from '@shared/channels'
 import { fail, isAppError, makeError, ok, type Envelope } from '@shared/errors'
 import { log } from '../log'
 import { getPlainSetting, setPlainSetting } from '../settings'
 import { TokenBucket } from '../sources/rate-limit'
+import { createAgentApproval } from './approval'
 import { createAgentAudit } from './audit'
 import { createAgentAuth } from './auth'
 import { createAgentTools, type AgentServices } from './tools'
@@ -31,6 +34,9 @@ export interface AgentGateway {
   issueToken(name: string, scopes: AgentScope[]): { token: string; client: AgentClientRecord }
   revoke(clientId: string): AgentStatus
   revokeAll(): AgentStatus
+  /** 用户对某次审批点「允许一次」或「拒绝」 */
+  decide(approvalId: string, allow: boolean): AgentStatus
+  pendingApprovals(): AgentApprovalTicket[]
   auditRecent(limit: number): AgentAuditEntry[]
   auditPath(): string
 }
@@ -45,11 +51,14 @@ export function createAgentGateway(deps: {
   services: AgentServices
   appVersion: string
   userDataDir: string
+  /** 把审批请求推给界面；审批框必须由应用自己弹，不能交给 agent */
+  notify: (channel: string, payload: unknown) => void
 }): AgentGateway {
   // 令牌存进 settings 的普通键，不走 safeStorage：哈希本身不是秘密，
   // 但明文令牌只在签发时出现一次，库里拿不到可用于连接的凭据。
   const auth = createAgentAuth({ read: getPlainSetting, write: setPlainSetting })
   const audit = createAgentAudit(deps.userDataDir)
+  const approval = createAgentApproval()
   const tools = createAgentTools({
     services: deps.services,
     appVersion: deps.appVersion
@@ -71,6 +80,7 @@ export function createAgentGateway(deps: {
       running,
       clients,
       scopes,
+      pendingApprovals: approval.pending(),
       pipeName: AGENT_PIPE_NAME,
       version: AGENT_PROTOCOL_VERSION,
       limits: AGENT_LIMITS
@@ -143,12 +153,63 @@ export function createAgentGateway(deps: {
       return
     }
 
-    // destructive 永不直接授予；需要审批的工具在 P2 接入审批管理器，这里先明确拒绝
+    // destructive 永不直接授予：要么走两阶段审批，要么明确拒绝。
+    // 审批必须先于作用域检查——destructive 本来就不在令牌作用域里。
     if (tool.approval) {
-      reply(fail('E_SCOPE_DENIED', 'approval required'))
-      return
-    }
-    if (!client.scopes.includes(tool.scope as AgentScope)) {
+      const argsHash = audit.argsHash(request.args)
+      const approvalId = typeof request.approvalId === 'string' ? request.approvalId : ''
+      if (!approvalId) {
+        if (!tool.preview) {
+          reply(fail('E_UNKNOWN', 'approval preview missing'))
+          return
+        }
+        try {
+          const preview = await tool.preview(request.args)
+          const ticket = approval.request(tool.name, argsHash, preview)
+          audit.write({
+            at: Date.now(),
+            clientId: client.id,
+            clientName: client.name,
+            tool: tool.name,
+            scope: tool.scope,
+            ok: false,
+            code: 'E_APPROVAL_REQUIRED',
+            argsHash,
+            note: `approval ${ticket.id}`
+          })
+          // 推给界面弹框；agent 只能等，不能自己批准
+          deps.notify(CHANNELS.agentApproval, ticket)
+          reply(fail('E_APPROVAL_REQUIRED', ticket.id))
+        } catch (error) {
+          const appError = isAppError(error) ? error : makeError('E_UNKNOWN', String(error))
+          reply({ ok: false, error: appError })
+        }
+        return
+      }
+
+      const verdict = approval.consume(approvalId, tool.name, argsHash)
+      if (verdict !== 'ok') {
+        const code =
+          verdict === 'denied'
+            ? 'E_APPROVAL_DENIED'
+            : verdict === 'expired'
+              ? 'E_APPROVAL_EXPIRED'
+              : 'E_APPROVAL_REQUIRED'
+        audit.write({
+          at: Date.now(),
+          clientId: client.id,
+          clientName: client.name,
+          tool: tool.name,
+          scope: tool.scope,
+          ok: false,
+          code,
+          argsHash,
+          note: `approval ${approvalId} ${verdict}`
+        })
+        reply(fail(code, verdict))
+        return
+      }
+    } else if (!client.scopes.includes(tool.scope as AgentScope)) {
       audit.write({
         at: Date.now(),
         clientId: client.id,
@@ -277,6 +338,17 @@ export function createAgentGateway(deps: {
     revokeAll() {
       auth.revokeAll()
       return status()
+    },
+
+    decide(approvalId, allow) {
+      // 只改审批状态，不执行动作：真正的执行由 agent 拿审批号再次调用来完成，
+      // 这样「谁批准」和「谁执行」在审计里是两条可对账的记录。
+      approval.decide(approvalId, allow)
+      return status()
+    },
+
+    pendingApprovals() {
+      return approval.pending()
     },
 
     auditRecent: (limit) => audit.recent(limit),

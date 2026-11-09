@@ -25,6 +25,8 @@ export interface QuarantineService {
   list(): QuarantineItem[]
   restore(raw: unknown): Promise<{ ok: true }>
   discard(raw: unknown): Promise<{ ok: true }>
+  /** 审批用的只读预览：把要恢复的条目连路径一起交给界面，不能只报数量 */
+  plan(raw: unknown): { items: { id: number; path: string }[] }
 }
 
 /**
@@ -56,6 +58,16 @@ export function createQuarantineService(deps: {
         reason: row.reason,
         createdAt: row.created_at
       }))
+    },
+
+    plan(raw) {
+      const ids = new Set(readPlanIds(raw))
+      // 用 list() 的同一份查询，保证审批看到的就是隔离区里真实存在的条目
+      return {
+        items: this.list()
+          .filter((item) => ids.has(item.id))
+          .map((item) => ({ id: item.id, path: item.path }))
+      }
     },
 
     async restore(raw) {
@@ -122,6 +134,15 @@ export function createQuarantineService(deps: {
       return { ok: true }
     }
   }
+}
+
+/** 审批预览只接受 id 数组；空数组或非法值直接拒绝，不返回空清单糊弄过去 */
+function readPlanIds(raw: unknown): number[] {
+  const value = typeof raw === 'object' && raw !== null ? (raw as { ids?: unknown }).ids : undefined
+  if (!Array.isArray(value) || value.length === 0) throw makeError('E_INVALID_ARG', 'ids')
+  const ids = value.filter((item): item is number => Number.isInteger(item) && (item as number) > 0)
+  if (ids.length !== value.length) throw makeError('E_INVALID_ARG', 'ids')
+  return ids
 }
 
 function loadRow(raw: unknown): QuarantineRow {
