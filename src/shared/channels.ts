@@ -70,7 +70,16 @@ export const CHANNELS = {
   browserHide: 'browser:hide',
   browserRecent: 'browser:recent',
   browserExternal: 'browser:external',
-  browserState: 'browser:state'
+  browserState: 'browser:state',
+  // V1.1 Agent 接入面：设置页开关、令牌签发与吊销、审计查看。
+  // 这些通道只给界面用，不暴露给 agent 自己（否则等于让它自己发令牌）
+  agentStatus: 'agent:status',
+  agentSetEnabled: 'agent:setEnabled',
+  agentIssueToken: 'agent:issueToken',
+  agentRevoke: 'agent:revoke',
+  agentRevokeAll: 'agent:revokeAll',
+  agentAudit: 'agent:audit',
+  agentAuditPath: 'agent:auditPath'
 } as const
 
 /** 渲染层可读的设置键白名单；不在表内的键一律拒绝 */

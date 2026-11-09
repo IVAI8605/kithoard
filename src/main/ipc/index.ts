@@ -1,7 +1,9 @@
-import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron'
+import { app, BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import path from 'node:path'
 import { CHANNELS } from '@shared/channels'
-import { fail, isAppError, ok, type Envelope } from '@shared/errors'
+import { fail, isAppError, makeError, ok, type Envelope } from '@shared/errors'
+import type { AgentScope } from '@shared/agent'
+import { createAgentGateway, type AgentGateway } from '../agent/gateway'
 import { cleanCache } from '../cache/clean'
 import { createBrowserService } from '../browser'
 import { createDownloadEngine } from '../download/engine'
@@ -24,6 +26,11 @@ import { createSettingsService } from '../services/settings'
 import { createSourceService } from '../services/sources'
 
 type Handler = (arg: unknown) => Promise<unknown> | unknown
+
+/** agent 相关通道的参数都是「单字段对象」，统一在这里降级成空对象，避免每处重复判空 */
+function readRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {}
+}
 
 function wrap(
   handler: Handler
@@ -80,6 +87,15 @@ export function registerIpc(deps: { userDataDir: string }): { shutdown: () => vo
   const reset = createResetService({ engine })
   const media = createMediaService({ notify: emit })
   const browser = createBrowserService({ notify: emit })
+
+  // V1.1 Agent 网关：与界面共用同一批 service，避免两套校验规则漂移。
+  // 默认关闭，只有用户在设置页显式开启后才开始监听命名管道。
+  const agent: AgentGateway = createAgentGateway({
+    services: { sources, search, detail, download, library, favorite, quarantine, media },
+    appVersion: app.getVersion(),
+    userDataDir: deps.userDataDir
+  })
+  agent.sync()
 
   // §7.5-8：启动时清一次超过 7 天的缩略图与响应缓存；只动 cache，不碰下载临时文件
   const cleaned = cleanCache(cacheRoot)
@@ -291,5 +307,58 @@ export function registerIpc(deps: { userDataDir: string }): { shutdown: () => vo
     wrap(() => favorite.ids())
   )
 
-  return { shutdown: () => engine.shutdown() }
+  ipcMain.handle(
+    CHANNELS.agentStatus,
+    wrap(() => agent.status())
+  )
+  ipcMain.handle(
+    CHANNELS.agentSetEnabled,
+    wrap((arg) => agent.setEnabled(readRecord(arg).enabled === true))
+  )
+  ipcMain.handle(
+    CHANNELS.agentIssueToken,
+    wrap((arg) => {
+      const record = readRecord(arg)
+      const name = typeof record.name === 'string' ? record.name : ''
+      // 只接受三个可授予作用域；destructive 永远进不来，必须逐次审批
+      const scopes = Array.isArray(record.scopes)
+        ? record.scopes.filter(
+            (item): item is AgentScope =>
+              item === 'read' || item === 'acquire' || item === 'organize'
+          )
+        : (['read', 'acquire'] as AgentScope[])
+      return agent.issueToken(name, scopes)
+    })
+  )
+  ipcMain.handle(
+    CHANNELS.agentRevoke,
+    wrap((arg) => {
+      const clientId = readRecord(arg).clientId
+      if (typeof clientId !== 'string' || !clientId) throw makeError('E_INVALID_ARG', 'clientId')
+      return agent.revoke(clientId)
+    })
+  )
+  ipcMain.handle(
+    CHANNELS.agentRevokeAll,
+    wrap(() => agent.revokeAll())
+  )
+  ipcMain.handle(
+    CHANNELS.agentAudit,
+    wrap((arg) => {
+      const limit = readRecord(arg).limit
+      return agent.auditRecent(typeof limit === 'number' ? limit : 50)
+    })
+  )
+  ipcMain.handle(
+    CHANNELS.agentAuditPath,
+    wrap(() => agent.auditPath())
+  )
+
+  return {
+    shutdown: () => {
+      // 先关网关再停下载：避免退出瞬间还有 agent 请求进来读到已关闭的库
+      agent.stop()
+      engine.shutdown()
+    }
+  }
 }

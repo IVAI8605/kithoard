@@ -88,6 +88,15 @@ const api: KithoardApi = {
     recent: () => ipcRenderer.invoke(CHANNELS.browserRecent),
     external: (url) => ipcRenderer.invoke(CHANNELS.browserExternal, { url }),
     onState: (listener) => subscribe<BrowserState>(CHANNELS.browserState, listener)
+  },
+  agent: {
+    status: () => ipcRenderer.invoke(CHANNELS.agentStatus),
+    setEnabled: (enabled) => ipcRenderer.invoke(CHANNELS.agentSetEnabled, { enabled }),
+    issueToken: (name, scopes) => ipcRenderer.invoke(CHANNELS.agentIssueToken, { name, scopes }),
+    revoke: (clientId) => ipcRenderer.invoke(CHANNELS.agentRevoke, { clientId }),
+    revokeAll: () => ipcRenderer.invoke(CHANNELS.agentRevokeAll),
+    audit: (limit) => ipcRenderer.invoke(CHANNELS.agentAudit, { limit }),
+    auditPath: () => ipcRenderer.invoke(CHANNELS.agentAuditPath)
   }
 }
 

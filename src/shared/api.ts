@@ -27,6 +27,12 @@ import type {
   SourceInfo
 } from './types'
 import type { AppError } from './errors'
+import type {
+  AgentAuditEntry,
+  AgentClientRecord,
+  AgentScope,
+  AgentStatus
+} from './agent'
 
 /** preload 暴露给渲染层的白名单接口；渲染层只能通过它访问主进程 */
 export interface KithoardApi {
@@ -141,6 +147,17 @@ export interface KithoardApi {
     recent: () => Promise<ApiResult<BrowserRecentItem[]>>
     external: (url: string) => Promise<ApiResult<{ ok: true }>>
     onState: (listener: (event: BrowserState) => void) => () => void
+  }
+  agent: {
+    status: () => Promise<ApiResult<AgentStatus>>
+    /** 开启后网关才开始监听命名管道；关闭会立即断开所有连接 */
+    setEnabled: (enabled: boolean) => Promise<ApiResult<AgentStatus>>
+    /** 明文令牌只在这里返回一次，界面必须提示用户立即复制 */
+    issueToken: (name: string, scopes: AgentScope[]) => Promise<ApiResult<{ token: string; client: AgentClientRecord }>>
+    revoke: (clientId: string) => Promise<ApiResult<AgentStatus>>
+    revokeAll: () => Promise<ApiResult<AgentStatus>>
+    audit: (limit: number) => Promise<ApiResult<AgentAuditEntry[]>>
+    auditPath: () => Promise<ApiResult<string>>
   }
 }
 

@@ -19,6 +19,18 @@ export type ErrorCode =
   | 'E_RISK_FILE'
   | 'E_RESTORE_INVALID'
   | 'E_DB_CORRUPT'
+  // V1.1 Agent 接入面专用：这些码只从网关返回，界面不直接产生，
+  // 单独列出是为了让 agent 能按文档区分「该等、该改参数、还是该找用户」
+  | 'E_AGENT_DISABLED'
+  | 'E_UNAUTHORIZED'
+  | 'E_SCOPE_DENIED'
+  | 'E_BATCH_TOO_LARGE'
+  | 'E_QUOTA_EXCEEDED'
+  | 'E_APPROVAL_REQUIRED'
+  | 'E_APPROVAL_DENIED'
+  | 'E_APPROVAL_EXPIRED'
+  | 'E_VERSION_MISMATCH'
+  | 'E_APP_NOT_READY'
   | 'E_UNKNOWN'
 
 export interface AppError {
@@ -53,6 +65,16 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   E_RISK_FILE: '文件存在风险，已移入隔离区',
   E_RESTORE_INVALID: '备份文件不合法',
   E_DB_CORRUPT: '本地数据库损坏',
+  E_AGENT_DISABLED: 'Agent 接入未开启',
+  E_UNAUTHORIZED: '连接令牌无效或已吊销',
+  E_SCOPE_DENIED: '当前连接没有该操作的作用域',
+  E_BATCH_TOO_LARGE: '单批数量超过上限',
+  E_QUOTA_EXCEEDED: '调用过于频繁，请稍后重试',
+  E_APPROVAL_REQUIRED: '该操作需要在本应用内人工确认',
+  E_APPROVAL_DENIED: '操作已被用户拒绝',
+  E_APPROVAL_EXPIRED: '审批已过期或已使用',
+  E_VERSION_MISMATCH: '客户端与接口版本不匹配',
+  E_APP_NOT_READY: '应用尚未就绪，请稍后重试',
   E_UNKNOWN: '出现未知错误，请重试'
 }
 
@@ -60,6 +82,9 @@ const RETRYABLE: ReadonlySet<ErrorCode> = new Set<ErrorCode>([
   'E_NETWORK',
   'E_RATE_LIMITED',
   'E_SOURCE_DOWN',
+  // 配额与未就绪属于「等一下就好」，让 agent 按文档延迟重试而不是直接放弃
+  'E_QUOTA_EXCEEDED',
+  'E_APP_NOT_READY',
   'E_UNKNOWN'
 ])
 

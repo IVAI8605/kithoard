@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ClearScope } from '@shared/types'
+import AgentPanel from '../components/AgentPanel'
 import { formatSize } from '../format'
 import { useAppStore } from '../store'
 
@@ -379,6 +380,8 @@ export default function SettingsPage() {
           </div>
         ))}
       </section>
+
+      <AgentPanel />
 
       {toast ? <div className="toast">{toast}</div> : null}
     </div>
