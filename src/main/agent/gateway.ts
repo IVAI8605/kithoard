@@ -309,8 +309,10 @@ export function createAgentGateway(deps: {
 
   return {
     sync() {
-      if (isEnabled()) startServer()
-      else stopServer()
+      // 无论开关如何都保持监听：否则关闭时客户端只会拿到 ENOENT，
+      // 分不清「应用没运行」和「用户没开 Agent」，文档里的 E_AGENT_DISABLED 也就永远发不出去。
+      // 安全性由 handleLine 的第一道判断保证：未开启时一律拒绝，不接受任何无令牌请求。
+      startServer()
     },
 
     stop: stopServer,
@@ -319,9 +321,14 @@ export function createAgentGateway(deps: {
 
     setEnabled(enabled) {
       setPlainSetting(ENABLED_KEY, enabled ? '1' : '0')
-      // 关闭时立即断开所有连接：不能等下一次请求才发现被关掉
-      if (enabled) startServer()
-      else stopServer()
+      if (!enabled) {
+        // 关闭时立即踢掉现有连接，不能等下一次请求才发现被关掉；
+        // 但保留监听，让后续请求能收到明确的 E_AGENT_DISABLED
+        for (const socket of sockets) socket.destroy()
+        sockets.clear()
+      } else {
+        startServer()
+      }
       log.info(`agent gateway ${enabled ? 'enabled' : 'disabled'}`)
       return status()
     },

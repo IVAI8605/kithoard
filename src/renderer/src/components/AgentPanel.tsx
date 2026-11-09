@@ -97,7 +97,11 @@ export default function AgentPanel() {
         <div>
           <p className="settings-row__label">允许外部连接</p>
           <p className="settings-row__value">
-            {status ? (status.running ? '正在监听' : '未监听') : '加载中…'}
+            {status
+              ? status.enabled
+                ? '已开启，正在监听'
+                : '已关闭，外部请求会被明确拒绝'
+              : '加载中…'}
             {status ? ` 管道 ${status.pipeName} 接口 v${status.version}` : ''}
           </p>
           {status ? (

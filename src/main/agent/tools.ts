@@ -216,6 +216,38 @@ export function createAgentTools(deps: {
       handler: () => services.media.list()
     },
     {
+      name: 'media_submit',
+      scope: 'organize',
+      risk: 'R1',
+      approval: false,
+      summary: '提交图片/音视频处理任务（转换、截图、截取、编辑），一律产出新文件',
+      handler: (args) => {
+        const record = asRecord(args)
+        const ids = readIds(record.ids, 'ids')
+        if (typeof record.options !== 'object' || record.options === null) {
+          throw makeError('E_INVALID_ARG', 'options')
+        }
+        const action = (record.options as Record<string, unknown>).action
+        // 压缩会覆盖原文件，属于破坏性写：不让 agent 触发，必须由用户在界面上确认
+        if (action === 'compress') {
+          throw makeError('E_SCOPE_DENIED', 'compress must be done in UI')
+        }
+        return services.media.start({ ids, options: record.options })
+      }
+    },
+    {
+      name: 'media_cancel',
+      scope: 'organize',
+      risk: 'R1',
+      approval: false,
+      summary: '取消媒体处理任务剩余项；已在处理的单条会做完',
+      handler: (args) => {
+        const taskId = asRecord(args).taskId
+        if (typeof taskId !== 'string' || !taskId) throw makeError('E_INVALID_ARG', 'taskId')
+        return services.media.cancel({ taskId })
+      }
+    },
+    {
       name: 'library_trash',
       scope: 'destructive',
       risk: 'R2',
