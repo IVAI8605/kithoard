@@ -130,6 +130,10 @@ $Checks = @(
      Point='启动后查主进程与 %APPDATA%\Kithoard\kithoard.db'; Expect='主进程存活且数据库已落地';
      Fail='进程秒退或数据库没生成，说明主进程没真正起来';
      Test={ if (-not $script:AppProcess) { return $false }; $script:AppProcess.Refresh(); (-not $script:AppProcess.HasExited) -and (Test-Path (Join-Path $env:APPDATA 'Kithoard\kithoard.db')) } },
+  @{ Id='I09'; Stage='install'; Mode='auto'; Title='安装目录含许可与声明';
+     Point='检查安装目录根部的 LICENSE / THIRD_PARTY_NOTICES.md / README.md';
+     Expect='三份文件都在'; Fail='缺文件：随包分发 GPL v3 的 FFmpeg 却没有可见的许可与构建来源';
+     Test={ $dir = Split-Path -Parent $script:AppExe; $missing = @('LICENSE','THIRD_PARTY_NOTICES.md','README.md') | Where-Object { -not (Test-Path (Join-Path $dir $_)) }; $missing.Count -eq 0 } },
   @{ Id='I06'; Stage='manual'; Mode='manual'; Title='关窗即完全退出';
      Point='在虚拟机桌面点关闭按钮，任务管理器看进程'; Expect='Kithoard 进程数归零';
      Fail='关窗后仍有后台进程，与 §7.8-验收 9 不符' },

@@ -1,6 +1,6 @@
 # 第三方组件与许可声明
 
-本应用随包分发以下第三方组件。修改或再分发时请保留本文件与各组件的许可文本。
+本仓库源码按 `LICENSE` 中的 MIT 许可授权；**下方第三方组件各自沿用其原有许可**，不因本仓库的 MIT 许可而改变。修改或再分发时请保留本文件与各组件的许可文本。
 
 | 组件 | 版本 | 许可 | 说明 |
 |---|---|---|---|
@@ -8,7 +8,7 @@
 | React / React DOM | 19.3.1 | MIT | 渲染层界面 |
 | Zustand | 5.1.0 | MIT | 渲染层状态管理 |
 | better-sqlite3 | 13.0.3 | MIT | 本地数据库（含预编译 SQLite） |
-| sharp | 0.34.5 | Apache-2.0 | 图片处理（含 libvips） |
+| sharp | 0.35.5 | Apache-2.0 | 图片处理（含 libvips / libheif / librsvg） |
 | FFmpeg / FFprobe | 9.0.2 essentials build | **GPL v3** | 音视频处理，见下 |
 | NSIS（V0.6 安装包） | 随 electron-builder | zlib/libpng 类 | 安装程序 |
 

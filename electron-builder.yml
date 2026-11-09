@@ -31,6 +31,13 @@ extraResources:
       - ffmpeg.exe
       - ffprobe.exe
 
+# 放在安装目录根部而不是打进 asar：随包分发 GPL v3 的 FFmpeg 时，
+# 用户与再分发者要能直接看到许可与构建来源，藏进 asar 等于没提供。
+extraFiles:
+  - LICENSE
+  - THIRD_PARTY_NOTICES.md
+  - README.md
+
 win:
   target:
     - nsis

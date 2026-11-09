@@ -1,9 +1,9 @@
 {
   "name": "kithoard",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Kithoard 栖材坞 · 本地素材中转站",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "MIT",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
