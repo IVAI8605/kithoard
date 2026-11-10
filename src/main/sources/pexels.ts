@@ -73,7 +73,9 @@ export function createPexelsSource(deps: {
       requiresApiKey: true,
       attributionRequired: false,
       maxPageSize: 20,
-      requiresSourceNotice: false
+      requiresSourceNotice: false,
+      // Pexels 的 images.pexels.com 直链不带签名，长期有效，不需要续期
+      refreshableDownloadTypes: []
     },
     isReady: () => apiKey().length > 0,
     async search(query: SearchQuery, signal: AbortSignal): Promise<SearchPage> {

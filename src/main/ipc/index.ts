@@ -9,7 +9,7 @@ import { createBrowserService } from '../browser'
 import { createDownloadEngine } from '../download/engine'
 import { log } from '../log'
 import { getApiKey } from '../settings'
-import { createSourceRegistry } from '../sources'
+import { createSourceRegistry, refreshDownloadUrl } from '../sources'
 import type { SourceRegistry } from '../sources/registry'
 import { createClipboardService } from '../services/clipboard'
 import { createDetailService } from '../services/detail'
@@ -71,7 +71,9 @@ export function registerIpc(deps: { userDataDir: string }): { shutdown: () => vo
   const clipboard = createClipboardService()
   const engine = createDownloadEngine({
     emit,
-    quarantineDir: path.join(deps.userDataDir, 'quarantine')
+    quarantineDir: path.join(deps.userDataDir, 'quarantine'),
+    // 图片直链两天即失效：下载前按 id 向来源取一次新链接，失败由引擎回退库内链接
+    refreshUrl: (target, signal) => refreshDownloadUrl(registry, target, signal)
   })
   // 设置里的并发数要立刻作用到队列，所以 settings 必须在 engine 之后创建
   const settings = createSettingsService({

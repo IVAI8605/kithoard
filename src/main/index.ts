@@ -4,6 +4,7 @@ import { closeDatabase, consumeRecoveryNotice, openDatabase } from './db'
 import { initLogging, log } from './log'
 import { registerIpc } from './ipc'
 import { registerThumbProtocol, THUMB_SCHEME } from './protocol'
+import { runKeyMigration } from './security/key-migration-startup'
 import { createMainWindow } from './window'
 
 // 自定义协议必须在 app ready 之前登记为「标准 + 安全」，否则渲染层无法当图片源使用
@@ -17,6 +18,8 @@ app
     const userData = app.getPath('userData')
     initLogging(userData)
     openDatabase(userData)
+    // 历史明文 Key 迁移必须在建窗口前完成；迁移失败也不能阻断启动
+    runKeyMigration(userData)
     // 数据库层不依赖日志模块；恢复事件在这里记一次，排查时有迹可循
     const recovery = consumeRecoveryNotice()
     if (recovery) log.warn(`db restored from .bak: ${recovery.detail}`)

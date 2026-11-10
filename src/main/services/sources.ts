@@ -1,5 +1,5 @@
 import type { SourceInfo } from '@shared/types'
-import { getEnabledSources, hasApiKey } from '../settings'
+import { getEnabledSources, hasApiKey, hasStoredApiKey } from '../settings'
 import type { SourceRegistry } from '../sources/registry'
 
 export interface SourceService {
@@ -18,6 +18,9 @@ export function createSourceService(deps: { registry: SourceRegistry }): SourceS
         ready: adapter.isReady(),
         requiresApiKey: adapter.capabilities.requiresApiKey,
         hasApiKey: adapter.capabilities.requiresApiKey ? hasApiKey(adapter.id) : true,
+        keyUndecryptable: adapter.capabilities.requiresApiKey
+          ? hasStoredApiKey(adapter.id) && !hasApiKey(adapter.id)
+          : false,
         rateLimitRemaining: bucket.remaining
       }))
     }

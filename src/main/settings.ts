@@ -1,5 +1,6 @@
 import { safeStorage } from 'electron'
 import { getDb } from './db'
+import { log } from './log'
 
 const API_KEY_PREFIX = 'source.apiKey.'
 
@@ -33,15 +34,19 @@ export function isKeyStorageEncrypted(): boolean {
 export function setApiKey(sourceId: string, value: string): void {
   const key = `${API_KEY_PREFIX}${sourceId}`
   const trimmed = value.trim()
+  const encrypted = isKeyStorageEncrypted()
   if (!trimmed) {
     getDb().prepare('DELETE FROM settings WHERE key = ?').run(key)
+    log.info(`key cleared source=${sourceId}`)
     return
   }
-  if (isKeyStorageEncrypted()) {
+  if (encrypted) {
     writeRaw(key, `enc:${safeStorage.encryptString(trimmed).toString('base64')}`)
-    return
+  } else {
+    writeRaw(key, `plain:${trimmed}`)
   }
-  writeRaw(key, `plain:${trimmed}`)
+  // 只记形态不记值：下次再出现明文降级时能直接定位，不必回查历史数据
+  log.info(`key storage=${encrypted ? 'encrypted' : 'plaintext'} source=${sourceId}`)
 }
 
 export function getApiKey(sourceId: string): string {
@@ -52,13 +57,22 @@ export function getApiKey(sourceId: string): string {
   try {
     return safeStorage.decryptString(Buffer.from(raw.slice('enc:'.length), 'base64'))
   } catch {
-    // 换机或换用户后 DPAPI 解不开：清空并要求重填，避免拿着坏数据反复报错
+    // 换机或换 Windows 用户后 DPAPI 解不开：坏值保留，由用户重填时自然覆盖，不自动删
+    log.warn(`api key undecryptable source=${sourceId}`)
     return ''
   }
 }
 
 export function hasApiKey(sourceId: string): boolean {
   return getApiKey(sourceId).length > 0
+}
+
+/**
+ * 库里是否存过 Key（不管能不能解开）。
+ * 用来区分「没配过」与「配过但解不开」——后者要提示用户重填，而不是显示「未配置」。
+ */
+export function hasStoredApiKey(sourceId: string): boolean {
+  return readRaw(`${API_KEY_PREFIX}${sourceId}`) !== null
 }
 
 export function getEnabledSources(): string[] {

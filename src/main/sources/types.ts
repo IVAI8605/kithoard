@@ -7,6 +7,8 @@ export interface SourceCapabilities {
   maxPageSize: number
   /** 搜索页是否必须显示来源文字（Pixabay 条款要求） */
   requiresSourceNotice: boolean
+  /** 哪些类型的下载直链会过期、下载前需按 id 重新取一次；空数组表示直链永久有效 */
+  refreshableDownloadTypes: AssetType[]
 }
 
 export interface SearchPage {

@@ -46,6 +46,20 @@ export function buildSearchUrl(apiKey: string, query: SearchQuery): string {
   return `${base}?${params.toString()}`
 }
 
+/**
+ * 按 id 取单条：搜索结果里的图片直链是短时效签名链接，过期后只能靠这个接口拿新的。
+ * 只用于图片；视频走 cdn.pixabay.com 的永久链接，不需要续期。
+ */
+export function buildByIdUrl(apiKey: string, remoteId: string): string {
+  const params = new URLSearchParams({ key: apiKey, id: remoteId })
+  return `${PIXABAY_BASE}?${params.toString()}`
+}
+
+/** 单条查询只取第一条命中；素材可能已被删除，此时返回 null 让调用方回退 */
+export function parseSingleHit(payload: PixabayPayload): PixabayHit | null {
+  return payload.hits?.[0] ?? null
+}
+
 function splitTags(tags: string | undefined): string[] {
   if (!tags) return []
   return tags

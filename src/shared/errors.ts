@@ -14,6 +14,7 @@ export type ErrorCode =
   | 'E_VERIFY_FAILED'
   | 'E_TEMP_MISSING'
   | 'E_FILE_IN_USE'
+  | 'E_LINK_EXPIRED'
   | 'E_FFMPEG_MISSING'
   | 'E_MEDIA_UNSUPPORTED'
   | 'E_RISK_FILE'
@@ -60,6 +61,7 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   E_VERIFY_FAILED: '文件校验未通过',
   E_TEMP_MISSING: '临时文件已丢失，请重新下载',
   E_FILE_IN_USE: '文件正被其他程序占用',
+  E_LINK_EXPIRED: '素材直链已过期，自动续期未成功',
   E_FFMPEG_MISSING: '未找到音视频处理组件',
   E_MEDIA_UNSUPPORTED: '不支持的媒体格式',
   E_RISK_FILE: '文件存在风险，已移入隔离区',

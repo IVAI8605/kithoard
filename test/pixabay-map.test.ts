@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildByIdUrl,
   buildSearchUrl,
   mapHit,
   parsePage,
   parseRateLimitRemaining,
+  parseSingleHit,
   type PixabayHit
 } from '../src/main/sources/pixabay-map'
 
@@ -33,6 +35,19 @@ describe('pixabay mapping', () => {
     const url = buildSearchUrl('KEY', { keyword: 'coffee', type: 'video', page: 1, pageSize: 20 })
     expect(url.startsWith('https://pixabay.com/api/videos/?')).toBe(true)
     expect(url).toContain('video_type=all')
+  })
+
+  it('builds the by-id refresh url for expired direct links', () => {
+    const url = buildByIdUrl('KEY', '123')
+    expect(url.startsWith('https://pixabay.com/api/?')).toBe(true)
+    expect(url).toContain('key=KEY')
+    expect(url).toContain('id=123')
+  })
+
+  it('parses a single hit defensively', () => {
+    expect(parseSingleHit({ hits: [imageHit] })?.id).toBe(123)
+    expect(parseSingleHit({ hits: [] })).toBeNull()
+    expect(parseSingleHit({})).toBeNull()
   })
 
   it('maps an image hit without inventing missing fields', () => {

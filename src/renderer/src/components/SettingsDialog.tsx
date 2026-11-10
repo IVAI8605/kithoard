@@ -17,6 +17,7 @@ export default function SettingsDialog({ onClose }: Props) {
 
   const pixabay = sources.find((source) => source.id === 'pixabay')
   const hasKey = Boolean(pixabay?.hasApiKey)
+  const keyUndecryptable = Boolean(pixabay?.keyUndecryptable)
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -94,6 +95,12 @@ export default function SettingsDialog({ onClose }: Props) {
           {keyStorage === 'plaintext' ? (
             <p className="dialog__warn">
               当前系统不支持安全加密，Key 会以明文保存在本机数据库，请注意电脑本身的安全。
+            </p>
+          ) : null}
+          {keyUndecryptable ? (
+            <p className="dialog__warn">
+              检测到已保存的 Key 无法解密（更换电脑或 Windows 账户后常见），请重新填写；保存新
+              Key 时会自动覆盖旧值。
             </p>
           ) : null}
         </section>

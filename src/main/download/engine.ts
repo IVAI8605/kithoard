@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { CHANNELS } from '@shared/channels'
-import { makeError, isAppError, type ErrorCode } from '@shared/errors'
+import { makeError, isAppError, type AppError, type ErrorCode } from '@shared/errors'
 import type { AssetType, DownloadState } from '@shared/types'
 import { getDb } from '../db'
 import { log } from '../log'
@@ -29,6 +29,9 @@ interface TaskRow {
   id: string
   asset_id: number | null
   asset_type: AssetType | null
+  /** 素材的来源与远程 id：下载前按 id 续期直链需要这两项 */
+  source_id: string | null
+  remote_id: string | null
   state: DownloadState
   target_path: string
   url: string
@@ -48,6 +51,10 @@ interface TaskRuntime {
   lastEmitAt: number
   lastFlushAt: number
   lastFlushBytes: number
+  /** 本次是否尝试过按 id 续期直链；400 只有在这时才按「链接过期」解释 */
+  refreshAttempted: boolean
+  /** 续期失败的原因码，用于让最终错误区分「链接过期」与「API 不可达 / Key 失效」 */
+  refreshError: ErrorCode | null
 }
 
 type AttemptOutcome =
@@ -72,6 +79,11 @@ export interface DownloadEngine {
 export function createDownloadEngine(deps: {
   emit: (channel: string, payload: unknown) => void
   quarantineDir: string
+  /** 下载前的直链续期；返回 null 表示不需要续期。失败由引擎兜底回退，不上抛 */
+  refreshUrl?: (
+    target: { sourceId: string; remoteId: string; type: AssetType },
+    signal: AbortSignal
+  ) => Promise<string | null>
 }): DownloadEngine {
   const running = new Map<string, Session>()
   let closed = false
@@ -90,7 +102,8 @@ export function createDownloadEngine(deps: {
     const db = getDb()
     const row = db
       .prepare(
-        `SELECT d.id, d.asset_id, a.type AS asset_type, d.state, d.target_path, d.url,
+        `SELECT d.id, d.asset_id, a.type AS asset_type, a.source_id, a.remote_id,
+                d.state, d.target_path, d.url,
                 d.total_bytes, d.received_bytes, d.etag, d.last_modified
            FROM downloads d
            LEFT JOIN assets a ON a.id = d.asset_id
@@ -119,7 +132,9 @@ export function createDownloadEngine(deps: {
       totalBytes: row.total_bytes,
       lastEmitAt: 0,
       lastFlushAt: Date.now(),
-      lastFlushBytes: partSize(row.target_path) ?? row.received_bytes
+      lastFlushBytes: partSize(row.target_path) ?? row.received_bytes,
+      refreshAttempted: false,
+      refreshError: null
     }
     const session: Session = { runtime, stopKind: null, done: Promise.resolve() }
     running.set(row.id, session)
@@ -139,6 +154,8 @@ export function createDownloadEngine(deps: {
     let stall = 0
 
     try {
+      // 续期放在最前面：拿到新链接后再发下载请求，续期本身失败也要继续尝试库内链接
+      await prepareUrl(rt)
       for (let round = 0; round < MAX_ROUNDS; round += 1) {
         const outcome = await attempt(rt)
         if (outcome.kind === 'completed') {
@@ -156,6 +173,30 @@ export function createDownloadEngine(deps: {
     }
   }
 
+  /**
+   * 下载前按 id 续期直链（§7.11-A）。续期是「尽力而为」：
+   * 失败只记原因并回退库内链接，不阻断下载；最终失败时把原因带进错误码，
+   * 避免界面只显示一个分不清「链接过期」还是「API 不可达」的 HTTP 状态。
+   */
+  async function prepareUrl(rt: TaskRuntime): Promise<void> {
+    if (!deps.refreshUrl || !rt.row.source_id || !rt.row.remote_id) return
+    rt.refreshAttempted = true
+    try {
+      const url = await deps.refreshUrl(
+        {
+          sourceId: rt.row.source_id,
+          remoteId: rt.row.remote_id,
+          type: rt.row.asset_type ?? 'image'
+        },
+        rt.controller.signal
+      )
+      if (url) rt.row.url = url
+    } catch (error) {
+      rt.refreshError = isAppError(error) ? error.code : 'E_NETWORK'
+      log.warn(`download url refresh failed: ${rt.row.id} code=${rt.refreshError}`)
+    }
+  }
+
   /** 发一次请求并把响应体写进 `.part`；返回值只描述「这一轮之后处于什么局面」 */
   async function attempt(rt: TaskRuntime): Promise<AttemptOutcome> {
     const response = await requestOnce(rt)
@@ -163,7 +204,10 @@ export function createDownloadEngine(deps: {
 
     if (response.status !== 200 && response.status !== 206 && response.status !== 416) {
       await discard(response)
-      throw makeError(mapHttpStatus(response.status), `HTTP ${response.status}`)
+      throw downloadStatusError(response.status, {
+        attempted: rt.refreshAttempted,
+        errorCode: rt.refreshError
+      })
     }
 
     const decision = decideRange(
@@ -637,6 +681,22 @@ function mapHttpStatus(status: number): ErrorCode {
   if (status === 401 || status === 403) return 'E_AUTH_REQUIRED'
   if (status >= 500) return 'E_SOURCE_DOWN'
   return 'E_NETWORK'
+}
+
+/**
+ * 把 HTTP 状态翻译成用户能看懂的错误码。
+ * 400 在签名直链场景下就是「链接已过期」；如果刚试过续期，就把续期的失败原因
+ * （断网 / Key 失效 / 限额）作为错误码，让界面能区分到底是链接过期还是接口不可达。
+ * 抽成纯函数是为了能直接单测这层口径。
+ */
+export function downloadStatusError(
+  status: number,
+  refresh: { attempted: boolean; errorCode: ErrorCode | null }
+): AppError {
+  if (status === 400 && refresh.attempted) {
+    return makeError(refresh.errorCode ?? 'E_LINK_EXPIRED', 'signed url expired')
+  }
+  return makeError(mapHttpStatus(status), `HTTP ${status}`)
 }
 
 function mapError(error: unknown): ErrorCode {

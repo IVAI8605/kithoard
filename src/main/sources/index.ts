@@ -1,6 +1,9 @@
 import { createPexelsSource } from './pexels'
 import { createPixabaySource } from './pixabay'
+import { refreshDownloadUrl } from './refresh'
 import { SourceRegistry } from './registry'
+
+export { refreshDownloadUrl }
 
 /** V0.3 起接入 Pexels；新增源只需在这里注册，IPC 与界面按 enabled 列表自动跟随 */
 export function createSourceRegistry(deps: {

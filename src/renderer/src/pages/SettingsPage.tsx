@@ -319,6 +319,12 @@ export default function SettingsPage() {
                     当前系统不支持安全加密，Key 会以明文保存在本机数据库，请注意电脑本身的安全。
                   </p>
                 ) : null}
+                {source.keyUndecryptable ? (
+                  <p className="dialog__warn">
+                    检测到已保存的 Key 无法解密（更换电脑或 Windows 账户后常见），
+                    请在下方重新填写；保存新 Key 时会自动覆盖旧值。
+                  </p>
+                ) : null}
               </div>
               <label className="switch-row">
                 <input

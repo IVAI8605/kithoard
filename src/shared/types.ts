@@ -106,6 +106,8 @@ export interface SourceInfo {
   ready: boolean
   requiresApiKey: boolean
   hasApiKey: boolean
+  /** 库里存过 Key 但当前解不开（换机或换 Windows 账户后常见），界面据此提示重填 */
+  keyUndecryptable: boolean
   rateLimitRemaining: number | null
 }
 
