@@ -61,6 +61,14 @@ export default function App() {
     }
   }, [setRecovery, loadDownloads])
 
+  // 托盘菜单要求跳转页面：先收起设置弹窗，再切到目标页，避免弹窗压在设置页上
+  useEffect(() => {
+    return window.api.app.onNavigate((target) => {
+      setSettingsOpen(false)
+      setView({ name: target === 'settings' ? 'settings' : 'search' })
+    })
+  }, [setSettingsOpen])
+
   // 事件全局订阅一次：用户切到别的页面再回来，进度仍在更新，不必按页重复挂监听
   useEffect(() => {
     const offProgress = window.api.download.onProgress((event) =>

@@ -71,6 +71,8 @@ export const CHANNELS = {
   browserRecent: 'browser:recent',
   browserExternal: 'browser:external',
   browserState: 'browser:state',
+  // V1.2.0 系统托盘：主进程通知渲染层切换页面（主页面 / 设置）
+  appNavigate: 'app:navigate',
   // V1.1 Agent 接入面：设置页开关、令牌签发与吊销、审计查看。
   // 这些通道只给界面用，不暴露给 agent 自己（否则等于让它自己发令牌）
   agentStatus: 'agent:status',

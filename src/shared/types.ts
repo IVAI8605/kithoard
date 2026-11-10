@@ -111,6 +111,9 @@ export interface SourceInfo {
   rateLimitRemaining: number | null
 }
 
+/** 托盘菜单请求跳转的目标页：主页面 / 设置 */
+export type AppNavigateTarget = 'home' | 'settings'
+
 /** 下载任务状态，与版本规划 §5.3 的状态机一一对应 */
 export type DownloadState =
   | 'queued'

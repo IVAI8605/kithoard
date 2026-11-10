@@ -1,6 +1,7 @@
 import type {
-  AssetDetail,
   AssetType,
+  AssetDetail,
+  AppNavigateTarget,
   BackupExportResult,
   BackupImportResult,
   BrowserRecentItem,
@@ -148,6 +149,10 @@ export interface KithoardApi {
     recent: () => Promise<ApiResult<BrowserRecentItem[]>>
     external: (url: string) => Promise<ApiResult<{ ok: true }>>
     onState: (listener: (event: BrowserState) => void) => () => void
+  }
+  /** V1.2.0 系统托盘：主进程请求跳转页面（home=主页面 / settings=设置） */
+  app: {
+    onNavigate: (listener: (target: AppNavigateTarget) => void) => () => void
   }
   agent: {
     status: () => Promise<ApiResult<AgentStatus>>

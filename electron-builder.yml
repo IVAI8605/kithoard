@@ -30,6 +30,9 @@ extraResources:
     filter:
       - ffmpeg.exe
       - ffprobe.exe
+  # 托盘图标随包到 resources/icons；缺失时托盘起不来，主进程会直接报错
+  - from: resources/icons
+    to: icons
 
 # 放在安装目录根部而不是打进 asar：随包分发 GPL v3 的 FFmpeg 时，
 # 用户与再分发者要能直接看到许可与构建来源，藏进 asar 等于没提供。
@@ -42,6 +45,8 @@ win:
   target:
     - nsis
   artifactName: Kithoard-${version}-x64.${ext}
+  # 此前不配 icon，打出来的 exe 与安装包都用 Electron 默认图标
+  icon: build/icon.png
 
 # V0.6 安装包：可选安装目录、桌面与开始菜单快捷方式；卸载默认保留用户数据与素材
 nsis:

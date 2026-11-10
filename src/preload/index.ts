@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type { KithoardApi } from '@shared/api'
 import type {
+  AppNavigateTarget,
   BrowserState,
   DownloadProgressEvent,
   DownloadStateEvent,
@@ -89,6 +90,10 @@ const api: KithoardApi = {
     recent: () => ipcRenderer.invoke(CHANNELS.browserRecent),
     external: (url) => ipcRenderer.invoke(CHANNELS.browserExternal, { url }),
     onState: (listener) => subscribe<BrowserState>(CHANNELS.browserState, listener)
+  },
+  app: {
+    onNavigate: (listener) =>
+      subscribe<AppNavigateTarget>(CHANNELS.appNavigate, listener)
   },
   agent: {
     status: () => ipcRenderer.invoke(CHANNELS.agentStatus),

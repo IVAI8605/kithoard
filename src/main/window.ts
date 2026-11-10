@@ -1,5 +1,6 @@
 import { BrowserWindow, screen, shell } from 'electron'
 import path from 'node:path'
+import { CHANNELS } from '@shared/channels'
 import { getPlainSetting, setPlainSetting } from './settings'
 
 interface WindowBounds {
@@ -52,6 +53,43 @@ function saveBounds(win: BrowserWindow): void {
   }
 }
 
+/** 托盘常驻需要拿到当前窗口：隐藏、唤出、发导航事件都从这里走 */
+let mainWindow: BrowserWindow | null = null
+/**
+ * 「关窗即隐藏」只在正常退出时放开。
+ * 托盘点「退出」会先调 markQuitting 再 app.quit，否则 close 事件会被自己拦下来。
+ */
+let quitting = false
+
+/** 退出流程必须先打标记，否则关窗会被「隐藏到托盘」拦截，进程退不出去 */
+export function markQuitting(): void {
+  quitting = true
+}
+
+export function hasMainWindow(): boolean {
+  return mainWindow !== null && !mainWindow.isDestroyed()
+}
+
+/** 把主窗口唤到前台；窗口已被销毁时重建（托盘常驻期间一般不会发生） */
+export function showMainWindow(): void {
+  if (!hasMainWindow()) {
+    createMainWindow()
+    return
+  }
+  const win = mainWindow as BrowserWindow
+  if (win.isMinimized()) win.restore()
+  win.show()
+  win.focus()
+}
+
+/** 托盘菜单请求跳转页面；窗口还没建好时先建窗，事件由渲染层挂载后自行消费 */
+export function navigateMainWindow(target: 'home' | 'settings'): void {
+  showMainWindow()
+  const win = mainWindow
+  if (!win || win.isDestroyed()) return
+  win.webContents.send(CHANNELS.appNavigate, target)
+}
+
 export function createMainWindow(): BrowserWindow {
   const saved = loadBounds()
   const win = new BrowserWindow({
@@ -72,7 +110,16 @@ export function createMainWindow(): BrowserWindow {
   })
 
   win.once('ready-to-show', () => win.show())
-  win.on('close', () => saveBounds(win))
+  win.on('close', (event) => {
+    // 常驻托盘：关窗只隐藏，下载与库连接都不断；真正退出时 quitting 已置位
+    saveBounds(win)
+    if (quitting) return
+    event.preventDefault()
+    win.hide()
+  })
+  win.on('closed', () => {
+    if (mainWindow === win) mainWindow = null
+  })
 
   // 外链一律交给系统浏览器，应用内不允许开新窗或跳走
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -87,5 +134,6 @@ export function createMainWindow(): BrowserWindow {
   if (devUrl) void win.loadURL(devUrl)
   else void win.loadFile(path.join(__dirname, '../renderer/index.html'))
 
+  mainWindow = win
   return win
 }
