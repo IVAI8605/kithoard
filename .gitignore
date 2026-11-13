@@ -2,9 +2,13 @@ node_modules/
 out/
 dist/
 cache/*
-!cache/待定问题.md
 .screenshots/
+# 密钥目录只放当前在用的那份，绝不入库（AGENTS #81）
+_keys/
 *.log
 # FFmpeg 静态二进制各约 100 MB，超过 GitHub 单文件限制；
 # 用 npm run fetch:ffmpeg 下载到本地，打包时再由 electron-builder 复制进 resources/bin
 resources/bin/*.exe
+
+# 状态卡放项目根且不入库（2026-11-13 用户裁决）
+/项目状态卡.md

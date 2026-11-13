@@ -192,7 +192,7 @@ function Show-Plan {
     Write-Host ("  {0}  {1}  |  点哪里: {2}  |  看到什么: {3}  |  失败: {4}" -f $c.Id, $c.Title, $c.Point, $c.Expect, $c.Fail)
   }
   Write-Host ''
-  Write-Host '注：§7.8-5「卸载勾选删除素材」按 cache/待定问题.md 第 20 条默认未实现，本次不验。'
+  Write-Host '注：§7.8-5「卸载勾选删除素材」按 docs/待定问题.md 第 20 条默认未实现，本次不验。'
 }
 
 # 预检永远跑，且只读；这一步不过就不往下走，避免在错的机器上装包
